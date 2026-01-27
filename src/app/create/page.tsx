@@ -13,7 +13,7 @@ import {
   resolveScriptHash,
   deserializeAddress,
 } from "@meshsdk/core";
-import blueprint from "../../smart-contract/plutus.json";
+import blueprintData from "@/../plutus.json"; 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,12 +22,43 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Upload, Coins, Loader2, CheckCircle, AlertCircle, Sparkles, X } from "lucide-react";
 import { motion } from "framer-motion";
 
+// --- 1. ĐỊNH NGHĨA TYPE CHO BLUEPRINT & ASSETS ---
+
+// Định nghĩa cấu trúc cho Asset trong UTXO (Mesh SDK trả về)
+interface Asset {
+  unit: string;
+  quantity: string;
+}
+
+// Định nghĩa cấu trúc cho Validator trong plutus.json
+interface ValidatorParameter {
+  title: string;
+  schema: {
+    $ref: string;
+  };
+}
+
+interface PlutusValidator {
+  title: string;
+  compiledCode: string;
+  hash: string;
+  parameters?: ValidatorParameter[];
+}
+
+interface PlutusBlueprint {
+  validators: PlutusValidator[];
+}
+
+// Ép kiểu dữ liệu JSON về Interface
+const blueprint = blueprintData as PlutusBlueprint;
+
+// ------------------------------------------------
+
 export default function CreateTokenPage() {
   const [file, setFile] = useState<File>();
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const [minting, setMinting] = useState(false);
-  const [ipfsHash, setIpfsHash] = useState("");
   const [txHash, setTxHash] = useState("");
   const [assetName, setAssetName] = useState("");
   const [assetDescription, setAssetDescription] = useState("");
@@ -36,10 +67,11 @@ export default function CreateTokenPage() {
   const [twitter, setTwitter] = useState("");
   const [telegram, setTelegram] = useState("");
   const [website, setWebsite] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [ipfsHash, setIpfsHash] = useState(""); // Giữ lại nếu cần dùng sau này
 
   const { wallet, connected } = useWallet();
 
-  // Create preview URL when file changes
   useEffect(() => {
     if (file) {
       const url = URL.createObjectURL(file);
@@ -73,10 +105,7 @@ export default function CreateTokenPage() {
       }
 
       const { url } = await urlRes.json();
-
-      // Upload file directly to Pinata using signed URL
       const uploadRes = await pinata.upload.public.file(file).url(url);
-
       const cid = uploadRes.cid || "";
       setIpfsHash(cid);
       setUploading(false);
@@ -88,7 +117,6 @@ export default function CreateTokenPage() {
         process.env.BLOCKFROST_API_KEY || 'preprodx5cQKfPVxM066Svrll0DLWjl1Zh4IBeE'
       );
 
-      // Get wallet address and UTxOs
       const walletAddress = await wallet.getChangeAddress();
       console.log('📍 Wallet Address:', walletAddress);
 
@@ -97,40 +125,36 @@ export default function CreateTokenPage() {
         throw new Error('❌ No UTxOs available. Please fund your wallet first.');
       }
 
-      // Select UTxO to consume (this makes it one-shot)
       const referenceUtxo = utxos[0];
+      
+      // FIX: Định nghĩa kiểu cụ thể cho 'a' thay vì any
+      const lovelaceAmount = referenceUtxo.output.amount.find(
+        (a: Asset) => a.unit === 'lovelace'
+      )?.quantity;
+
       console.log('🔐 Consuming UTxO:', {
         txHash: referenceUtxo.input.txHash,
         outputIndex: referenceUtxo.input.outputIndex,
-        lovelace: referenceUtxo.output.amount.find(a => a.unit === 'lovelace')?.quantity
+        lovelace: lovelaceAmount
       });
 
-      // Get Pump validator script with UTXO parameters
+      // FIX: blueprint.validators đã được định nghĩa kiểu ở trên, không cần any
       const validator = blueprint.validators.find(
-        (v: any) => v.title === 'pump.pump.mint'
+        (v) => v.title === 'pump.pump.mint'
       );
 
       if (!validator) {
         throw new Error('pump.pump.mint validator not found in plutus.json');
       }
 
-      console.log('🔧 Applying parameters:', {
-        txHash: referenceUtxo.input.txHash,
-        outputIndex: referenceUtxo.input.outputIndex,
-      });
-
-      // Apply parameters: required_tx_hash (ByteArray) and required_output_index (Int)
       const params = [
         referenceUtxo.input.txHash,
         referenceUtxo.input.outputIndex
       ];
 
       const scriptCbor = applyParamsToScript(validator.compiledCode, params);
-
-      // Get policy ID from script hash (for minting)
       const policyId = resolveScriptHash(scriptCbor, 'V3');
 
-      // Get script address (for pool)
       const script: PlutusScript = {
         code: scriptCbor,
         version: "V3",
@@ -140,17 +164,14 @@ export default function CreateTokenPage() {
       console.log('🔑 Policy ID:', policyId);
       console.log('🏊 Pool Address (Script):', scriptAddress);
 
-      // Define token to mint
       const tokenName = assetName.replace(/\s+/g, "");
       const tokenQuantity = assetQuantity.toString();
       const assetNameHex = Buffer.from(tokenName).toString('hex');
 
       console.log(`🪙 Minting ${parseInt(tokenQuantity).toLocaleString()}x ${tokenName}...`);
 
-      // Get wallet owner pubkey hash
       const ownerPubKeyHash = deserializeAddress(walletAddress).pubKeyHash;
 
-      // Create CIP-25 metadata
       const cip25Metadata = {
         [policyId]: {
           [tokenName]: {
@@ -166,26 +187,17 @@ export default function CreateTokenPage() {
         },
       };
 
-      // Create Pool Datum
-      // PoolDatum { token_policy, token_name, slope, current_supply, creator }
-      const slope = 1_000_000; // 1 ADA per unit supply
-      const initialSupply = 0; // Pool starts with 0 supply (nothing sold yet)
+      const slope = 1_000_000; 
+      const initialSupply = 0; 
 
       const poolDatum = mConStr0([
-        policyId,           // token_policy (PolicyId)
-        assetNameHex,       // token_name (ByteArray hex)
-        slope,              // slope (Int)
-        initialSupply,      // current_supply (Int) - starts at 0
-        ownerPubKeyHash,    // creator (ByteArray)
+        policyId,           
+        assetNameHex,       
+        slope,              
+        initialSupply,      
+        ownerPubKeyHash,    
       ]);
 
-      console.log('📊 Pool Configuration:');
-      console.log(`   Total Supply: ${parseInt(tokenQuantity).toLocaleString()}`);
-      console.log(`   Initial Circulating: 0 (all locked in pool)`);
-      console.log(`   Slope: ${slope.toLocaleString()} lovelace`);
-      console.log(`   Formula: Price = ${(slope / 1_000_000)} ADA × Supply`);
-
-      // Build transaction
       console.log('\n🔨 Building transaction...');
 
       const txBuilder = new MeshTxBuilder({
@@ -193,13 +205,12 @@ export default function CreateTokenPage() {
         submitter: blockchainProvider,
       });
 
-      // Mint redeemer: MintInitial (constructor 0, no fields)
       const mintRedeemer = mConStr0([]);
 
-      // Select a collateral UTxO (must be pure ADA, no tokens)
       const collateralUtxo = utxos.find(
         (u) => {
-          const lovelace = u.output.amount.find((a: any) => a.unit === 'lovelace');
+          // FIX: Định nghĩa kiểu cụ thể cho 'a' thay vì any
+          const lovelace = u.output.amount.find((a: Asset) => a.unit === 'lovelace');
           const hasOnlyAda = u.output.amount.length === 1 && lovelace;
           const hasEnoughAda = lovelace && Number(lovelace.quantity) >= 5000000;
           return hasOnlyAda && hasEnoughAda;
@@ -210,70 +221,52 @@ export default function CreateTokenPage() {
         throw new Error('No suitable collateral UTxO found (need pure ADA UTxO with at least 5 ADA)');
       }
 
+      // FIX: Định nghĩa kiểu cụ thể cho 'a' thay vì any
+      const collateralLovelace = collateralUtxo.output.amount.find(
+        (a: Asset) => a.unit === 'lovelace'
+      )?.quantity;
+
       console.log('💰 Using collateral:', {
         txHash: collateralUtxo.input.txHash.substring(0, 16) + '...',
-        lovelace: collateralUtxo.output.amount.find((a: any) => a.unit === 'lovelace')?.quantity
+        lovelace: collateralLovelace
       });
 
-      // Build transaction
       await txBuilder
-        // Select UTxOs from wallet
         .selectUtxosFrom(utxos)
-        // Consume the required UTxO (this enables one-shot minting)
         .txIn(
           referenceUtxo.input.txHash,
           referenceUtxo.input.outputIndex,
           referenceUtxo.output.amount,
           referenceUtxo.output.address
         )
-        // Mint the token
         .mintPlutusScriptV3()
         .mint(tokenQuantity, policyId, assetNameHex)
         .mintingScript(scriptCbor)
         .mintRedeemerValue(mintRedeemer)
-        // Add collateral
         .txInCollateral(
           collateralUtxo.input.txHash,
           collateralUtxo.input.outputIndex,
           collateralUtxo.output.amount,
           collateralUtxo.output.address
         )
-        // Send all minted tokens to pool with 5 ADA minimum
         .txOut(scriptAddress, [
-          { unit: 'lovelace', quantity: '5000000' },  // 5 ADA minimum
-          { unit: policyId + assetNameHex, quantity: tokenQuantity }  // All minted tokens
+          { unit: 'lovelace', quantity: '5000000' }, 
+          { unit: policyId + assetNameHex, quantity: tokenQuantity } 
         ])
         .txOutInlineDatumValue(poolDatum)
-        // Add CIP-25 metadata
         .metadataValue(721, cip25Metadata)
         .changeAddress(walletAddress)
         .complete();
 
       console.log('✅ Transaction built successfully');
-
-      // Sign transaction
       console.log('✍️  Signing transaction...');
       const signedTx = await wallet.signTx(txBuilder.txHex);
 
-      // Submit transaction
       console.log('📤 Submitting transaction...');
       const txHash = await wallet.submitTx(signedTx);
 
       setTxHash(txHash);
       setMinting(false);
-
-      console.log('\n✅ SUCCESS!');
-      console.log('📝 Transaction Hash:', txHash);
-      console.log('🔗 View on Cardanoscan:');
-      console.log(`   https://preprod.cardanoscan.io/transaction/${txHash}`);
-      console.log('\n🎉 Pump Pool Created!');
-      console.log(`   Policy ID: ${policyId}`);
-      console.log(`   Token Name: ${tokenName}`);
-      console.log(`   Total Supply: ${parseInt(tokenQuantity).toLocaleString()}`);
-      console.log(`   Asset ID: ${policyId}${assetNameHex}`);
-      console.log(`\n🏊 Pool Address (Buy/Sell here):`);
-      console.log(`   ${scriptAddress}`);
-      console.log(`\n💹 Bonding Curve Formula: Price = ${slope / 1_000_000} ADA × Supply`);
 
       alert("Pump pool created successfully!");
     } catch (e) {
@@ -316,7 +309,6 @@ export default function CreateTokenPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Image Upload */}
             <div className="space-y-2">
               <Label>Token Image *</Label>
               <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
@@ -336,6 +328,9 @@ export default function CreateTokenPage() {
                       </p>
                       <p className="text-xs text-muted-foreground mt-2">
                         JPG, PNG, GIF up to 5MB
+                      </p>
+                      <p className="text-xs text-primary mt-1 font-medium">
+                        Recommended: 256×256px or 512×512px PNG with transparent background
                       </p>
                     </label>
                   </>
@@ -382,7 +377,6 @@ export default function CreateTokenPage() {
               </div>
             </div>
 
-            {/* Token Details */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="asset-name">Token Name *</Label>
@@ -429,7 +423,6 @@ export default function CreateTokenPage() {
               />
             </div>
 
-            {/* Social Links */}
             <div className="space-y-3">
               <Label className="text-sm font-medium text-muted-foreground">Social Links (Optional)</Label>
               <div className="grid grid-cols-1 gap-2">
@@ -495,7 +488,7 @@ export default function CreateTokenPage() {
                   <div className="grid grid-cols-1 gap-2 text-xs">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Bonding Curve:</span>
-                      <span className="font-mono">Price = 0.001 ADA × Supply</span>
+                      <span className="font-mono">Price = Supply × 1 ADA</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total Supply:</span>
@@ -503,7 +496,7 @@ export default function CreateTokenPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Initial Price:</span>
-                      <span>0.001 ADA</span>
+                      <span>0 ADA</span>
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
@@ -517,7 +510,6 @@ export default function CreateTokenPage() {
         </Card>
       </motion.div>
 
-      {/* Info Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -557,10 +549,19 @@ export default function CreateTokenPage() {
         <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-xl">
           <h4 className="font-medium mb-2">Bonding Curve Explained</h4>
           <p className="text-sm text-muted-foreground">
-            Your token starts with a bonding curve where price = 0.001 ADA × current supply.
+            Your token starts with a bonding curve where price = current supply × 1 ADA.
             As more people buy, the price increases automatically. When the curve reaches maturity,
             your token graduates to full DEX liquidity.
           </p>
+        </div>
+        <div className="mt-4 p-4 bg-green-500/5 border border-green-500/20 rounded-xl">
+          <h4 className="font-medium mb-2 text-green-700 dark:text-green-400">💡 Image Tips for Meme Tokens</h4>
+          <ul className="text-sm text-muted-foreground space-y-1">
+            <li>• <strong>Size:</strong> 256×256px or 512×512px (square aspect ratio)</li>
+            <li>• <strong>Format:</strong> PNG with transparent background works best</li>
+            <li>• <strong>Quality:</strong> High resolution, clear and recognizable from small sizes</li>
+            <li>• <strong>Style:</strong> Simple, bold designs work great for meme tokens</li>
+          </ul>
         </div>
       </motion.div>
     </div>

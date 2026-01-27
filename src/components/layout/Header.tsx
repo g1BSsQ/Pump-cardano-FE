@@ -1,7 +1,7 @@
 import { Search, Wallet, ChevronDown, Sparkles, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/utils";
 import { WalletModal } from "@/components/ui/WalletModal";
 import { useWallet, useAddress, useLovelace } from "@meshsdk/react";
 

@@ -10,7 +10,7 @@ import {
   ChevronRight,
   Sparkles
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
 const navItems = [

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ArrowDownUp, Settings, ChevronDown, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface SwapPanelProps {

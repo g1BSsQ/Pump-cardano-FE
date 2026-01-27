@@ -8,7 +8,6 @@ import { useState, ReactNode } from "react";
 import {MeshProvider} from "@meshsdk/react";
 
 export function Providers({ children }: { children: ReactNode }) {
-  // Đảm bảo QueryClient chỉ khởi tạo 1 lần
   const [queryClient] = useState(() => new QueryClient());
 
   return (

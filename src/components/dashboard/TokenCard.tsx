@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { TrendingUp, Users } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -29,9 +30,11 @@ export const TokenCard = ({ token, index }: TokenCardProps) => {
         {/* Header */}
         <div className="flex items-start gap-3 mb-4">
           <div className="w-12 h-12 rounded-lg overflow-hidden bg-secondary flex-shrink-0 group-hover:glow-cyan transition-all duration-300">
-            <img 
-              src={token.image} 
+            <Image
+              src={token.image}
               alt={token.name}
+              width={48}
+              height={48}
               className="w-full h-full object-cover"
             />
           </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Wallet, TrendingUp, TrendingDown, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -95,9 +96,11 @@ const Portfolio = () => {
                 className="glass-panel p-4 card-hover"
               >
                 <div className="flex items-center gap-4">
-                  <img
+                  <Image
                     src={holding.image}
                     alt={holding.name}
+                    width={48}
+                    height={48}
                     className="w-12 h-12 rounded-lg object-cover"
                   />
                   <div className="flex-1">

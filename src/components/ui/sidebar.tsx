@@ -6,7 +6,7 @@ import { VariantProps, cva } from "class-variance-authority";
 import { PanelLeft } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -533,8 +533,8 @@ const SidebarMenuSkeleton = React.forwardRef<
     showIcon?: boolean;
   }
 >(({ className, showIcon = false, ...props }, ref) => {
-  // FIX: Dùng useState và useEffect để tạo random width phía client
-  // Tránh lỗi "Cannot call impure function during render" và Hydration Mismatch
+  // FIX: Use useState and useEffect to generate random width on client side
+  // Avoid "Cannot call impure function during render" error and Hydration Mismatch
   const [width, setWidth] = React.useState("50%");
 
   React.useEffect(() => {

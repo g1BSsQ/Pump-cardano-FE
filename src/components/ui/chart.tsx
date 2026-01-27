@@ -3,7 +3,7 @@
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/utils";
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const;
@@ -61,7 +61,7 @@ const ChartContainer = React.forwardRef<
 ChartContainer.displayName = "Chart";
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
-  const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
+  const colorConfig = Object.entries(config).filter(([_key, config]) => config.theme || config.color);
 
   if (!colorConfig.length) {
     return null;
@@ -100,9 +100,9 @@ const ChartTooltipContent = React.forwardRef<
       indicator?: "line" | "dot" | "dashed";
       nameKey?: string;
       labelKey?: string;
-      // FIX: Sử dụng React.ReactNode thay vì any
+      // FIX: Use React.ReactNode instead of any
       label?: React.ReactNode;
-      // FIX: Sử dụng unknown[] hoặc disable eslint cho dòng này nếu payload quá phức tạp
+      // FIX: Use unknown[] or disable eslint for this line if payload is too complex
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       payload?: any[];
       active?: boolean;
@@ -240,7 +240,7 @@ const ChartLegendContent = React.forwardRef<
   React.ComponentProps<"div"> & {
     hideIcon?: boolean;
     nameKey?: string;
-    // FIX: Tắt eslint cho payload ở đây nữa
+    // FIX: Disable eslint for payload here too
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     payload?: any[];
     verticalAlign?: "top" | "middle" | "bottom";

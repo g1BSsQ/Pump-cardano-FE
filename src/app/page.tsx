@@ -2,7 +2,6 @@
 
 import { KingOfHillCard } from "@/components/dashboard/KingOfHillCard";
 import { TokenGrid } from "@/components/dashboard/TokenGrid";
-import { motion } from "framer-motion";
 
 // ... (Giữ nguyên phần code constants kingToken và stats như cũ) ...
 const kingToken = {

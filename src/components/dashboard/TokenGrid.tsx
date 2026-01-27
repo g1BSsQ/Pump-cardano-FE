@@ -5,8 +5,9 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import { Grid3X3, List, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
-// --- 1. Định nghĩa Type cho Token để dùng chung ---
+// --- 1. Define Token Type for shared use ---
 interface Token {
   id: string;
   name: string;
@@ -196,7 +197,13 @@ const ListView = ({ tokens }: { tokens: Token[] }) => (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl overflow-hidden glow-cyan">
-              <img src={token.image} alt={token.name} className="w-full h-full object-cover" />
+              <Image
+                src={token.image}
+                alt={token.name}
+                width={48}
+                height={48}
+                className="w-full h-full object-cover"
+              />
             </div>
             <div>
               <div className="flex items-center gap-2">

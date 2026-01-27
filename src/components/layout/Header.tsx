@@ -1,16 +1,15 @@
 import { Search, Wallet, ChevronDown, Sparkles, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/utils";
 import { WalletModal } from "@/components/ui/WalletModal";
-import { useWallet, useAddress, useLovelace } from "@meshsdk/react";
+import { useWallet, useAddress } from "@meshsdk/react";
 
 export const Header = () => {
   const [searchFocused, setSearchFocused] = useState(false);
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const { connected, disconnect } = useWallet();
   const address = useAddress();
-  const balance = useLovelace();
 
   const getShortAddress = (fullAddress: string) => {
     if (!fullAddress) return "";

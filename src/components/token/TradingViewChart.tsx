@@ -35,11 +35,12 @@ export const TradingViewChart = ({ symbol = "BINANCE:ADAUSDT" }: TradingViewChar
       height: 505
     });
 
-    containerRef.current.appendChild(script);
+    const currentContainer = containerRef.current;
+    currentContainer.appendChild(script);
 
     return () => {
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
+      if (currentContainer) {
+        currentContainer.innerHTML = '';
       }
     };
   }, [symbol]);

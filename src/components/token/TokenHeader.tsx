@@ -2,6 +2,7 @@ import { ExternalLink, Share2, Star, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 interface TokenHeaderProps {
   token: {
@@ -34,7 +35,13 @@ export const TokenHeader = ({ token }: TokenHeaderProps) => {
       {/* Token Info */}
       <div className="flex items-center gap-4">
         <div className="w-14 h-14 rounded-xl overflow-hidden glow-cyan">
-          <img src={token.image} alt={token.name} className="w-full h-full object-cover" />
+          <Image
+            src={token.image}
+            alt={token.name}
+            width={256}
+            height={256}
+            className="w-full h-full object-cover"
+          />
         </div>
         <div>
           <div className="flex items-center gap-2">

@@ -21,7 +21,7 @@ const Command = React.forwardRef<
 ));
 Command.displayName = CommandPrimitive.displayName;
 
-// --- FIX LỖI Ở ĐÂY: Chuyển interface thành type ---
+// --- FIX ERROR HERE: Convert interface to type ---
 type CommandDialogProps = DialogProps
 
 const CommandDialog = ({ children, ...props }: CommandDialogProps) => {

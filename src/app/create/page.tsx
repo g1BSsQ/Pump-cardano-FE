@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { useWallet } from "@meshsdk/react";
 import { pinata } from "@/utils/config";
 import {
@@ -22,15 +23,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Upload, Coins, Loader2, CheckCircle, AlertCircle, Sparkles, X } from "lucide-react";
 import { motion } from "framer-motion";
 
-// --- 1. ĐỊNH NGHĨA TYPE CHO BLUEPRINT & ASSETS ---
+// --- 1. TYPE DEFINITIONS FOR BLUEPRINT & ASSETS ---
 
-// Định nghĩa cấu trúc cho Asset trong UTXO (Mesh SDK trả về)
+// Define structure for Asset in UTXO (returned by Mesh SDK)
 interface Asset {
   unit: string;
   quantity: string;
 }
 
-// Định nghĩa cấu trúc cho Validator trong plutus.json
+// Define structure for Validator in plutus.json
 interface ValidatorParameter {
   title: string;
   schema: {
@@ -49,7 +50,7 @@ interface PlutusBlueprint {
   validators: PlutusValidator[];
 }
 
-// Ép kiểu dữ liệu JSON về Interface
+// Cast JSON data to Interface
 const blueprint = blueprintData as PlutusBlueprint;
 
 // ------------------------------------------------
@@ -68,7 +69,7 @@ export default function CreateTokenPage() {
   const [telegram, setTelegram] = useState("");
   const [website, setWebsite] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [ipfsHash, setIpfsHash] = useState(""); // Giữ lại nếu cần dùng sau này
+  const [ipfsHash, setIpfsHash] = useState(""); // Keep for future use if needed
 
   const { wallet, connected } = useWallet();
 
@@ -127,7 +128,7 @@ export default function CreateTokenPage() {
 
       const referenceUtxo = utxos[0];
       
-      // FIX: Định nghĩa kiểu cụ thể cho 'a' thay vì any
+      // FIX: Define specific type for 'a' instead of any
       const lovelaceAmount = referenceUtxo.output.amount.find(
         (a: Asset) => a.unit === 'lovelace'
       )?.quantity;
@@ -138,7 +139,7 @@ export default function CreateTokenPage() {
         lovelace: lovelaceAmount
       });
 
-      // FIX: blueprint.validators đã được định nghĩa kiểu ở trên, không cần any
+      // FIX: blueprint.validators is already typed above, no need for any
       const validator = blueprint.validators.find(
         (v) => v.title === 'pump.pump.mint'
       );
@@ -209,7 +210,7 @@ export default function CreateTokenPage() {
 
       const collateralUtxo = utxos.find(
         (u) => {
-          // FIX: Định nghĩa kiểu cụ thể cho 'a' thay vì any
+          // FIX: Define specific type for 'a' instead of any
           const lovelace = u.output.amount.find((a: Asset) => a.unit === 'lovelace');
           const hasOnlyAda = u.output.amount.length === 1 && lovelace;
           const hasEnoughAda = lovelace && Number(lovelace.quantity) >= 5000000;
@@ -221,7 +222,7 @@ export default function CreateTokenPage() {
         throw new Error('No suitable collateral UTxO found (need pure ADA UTxO with at least 5 ADA)');
       }
 
-      // FIX: Định nghĩa kiểu cụ thể cho 'a' thay vì any
+      // FIX: Define specific type for 'a' instead of any
       const collateralLovelace = collateralUtxo.output.amount.find(
         (a: Asset) => a.unit === 'lovelace'
       )?.quantity;
@@ -337,9 +338,11 @@ export default function CreateTokenPage() {
                 ) : (
                   <div className="space-y-4">
                     <div className="relative inline-block">
-                      <img
+                      <Image
                         src={previewUrl}
                         alt="Token preview"
+                        width={256}
+                        height={256}
                         className="w-64 h-64 mx-auto rounded-lg object-cover border-2 shadow-xl"
                       />
                       <button
@@ -508,61 +511,6 @@ export default function CreateTokenPage() {
 
           </CardContent>
         </Card>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="glass-panel p-6"
-      >
-        <h3 className="font-semibold mb-4">How it works:</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-              1
-            </div>
-            <div>
-              <h4 className="font-medium">Fill Details</h4>
-              <p className="text-muted-foreground">Enter token name, description, and upload image</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-              2
-            </div>
-            <div>
-              <h4 className="font-medium">Create Pool</h4>
-              <p className="text-muted-foreground">Smart contract creates bonding curve pool with your tokens</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-              3
-            </div>
-            <div>
-              <h4 className="font-medium">Live Trading</h4>
-              <p className="text-muted-foreground">Token goes live with automatic price discovery</p>
-            </div>
-          </div>
-        </div>
-        <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-xl">
-          <h4 className="font-medium mb-2">Bonding Curve Explained</h4>
-          <p className="text-sm text-muted-foreground">
-            Your token starts with a bonding curve where price = current supply × 1 ADA.
-            As more people buy, the price increases automatically. When the curve reaches maturity,
-            your token graduates to full DEX liquidity.
-          </p>
-        </div>
-        <div className="mt-4 p-4 bg-green-500/5 border border-green-500/20 rounded-xl">
-          <h4 className="font-medium mb-2 text-green-700 dark:text-green-400">💡 Image Tips for Meme Tokens</h4>
-          <ul className="text-sm text-muted-foreground space-y-1">
-            <li>• <strong>Size:</strong> 256×256px or 512×512px (square aspect ratio)</li>
-            <li>• <strong>Format:</strong> PNG with transparent background works best</li>
-            <li>• <strong>Quality:</strong> High resolution, clear and recognizable from small sizes</li>
-            <li>• <strong>Style:</strong> Simple, bold designs work great for meme tokens</li>
-          </ul>
-        </div>
       </motion.div>
     </div>
   );

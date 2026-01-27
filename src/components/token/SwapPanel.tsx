@@ -3,6 +3,7 @@ import { ArrowDownUp, Settings, ChevronDown, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 
 interface SwapPanelProps {
   token: {
@@ -151,7 +152,13 @@ export const SwapPanel = ({ token }: SwapPanelProps) => {
             {amount ? (parseFloat(amount) * 1000000).toLocaleString() : "0.00"}
           </span>
           <button className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors">
-            <img src={token.image} alt={token.ticker} className="w-6 h-6 rounded-full" />
+            <Image
+              src={token.image}
+              alt={token.ticker}
+              width={24}
+              height={24}
+              className="w-6 h-6 rounded-full"
+            />
             <span className="font-semibold">${token.ticker}</span>
             <ChevronDown className="w-4 h-4 text-muted-foreground" />
           </button>

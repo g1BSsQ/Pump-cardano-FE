@@ -533,8 +533,8 @@ const SidebarMenuSkeleton = React.forwardRef<
     showIcon?: boolean;
   }
 >(({ className, showIcon = false, ...props }, ref) => {
-  // FIX: Dùng useState và useEffect để tạo random width phía client
-  // Tránh lỗi "Cannot call impure function during render" và Hydration Mismatch
+  // FIX: Use useState and useEffect to generate random width on client side
+  // Avoid "Cannot call impure function during render" error and Hydration Mismatch
   const [width, setWidth] = React.useState("50%");
 
   React.useEffect(() => {

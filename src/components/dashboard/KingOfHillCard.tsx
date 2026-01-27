@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Crown, TrendingUp, Flame, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -93,9 +94,11 @@ export const KingOfHillCard = ({ token }: KingOfHillCardProps) => {
           {/* Token Image */}
           <div className="relative">
             <div className="w-32 h-32 lg:w-40 lg:h-40 rounded-2xl overflow-hidden glow-cyan">
-              <img 
-                src={token.image} 
+              <Image
+                src={token.image}
                 alt={token.name}
+                width={256}
+                height={256}
                 className="w-full h-full object-cover"
               />
             </div>

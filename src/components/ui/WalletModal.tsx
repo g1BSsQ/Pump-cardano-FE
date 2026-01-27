@@ -5,6 +5,7 @@ import { Wallet, ExternalLink, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useWallet, useWalletList, useAddress, useLovelace } from "@meshsdk/react";
+import Image from "next/image";
 
 interface WalletModalProps {
   isOpen: boolean;
@@ -104,9 +105,11 @@ export const WalletModal = ({ isOpen, onClose }: WalletModalProps) => {
                     className="w-full p-4 rounded-lg glass-panel hover:card-hover transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="flex items-center gap-3">
-                      <img
+                      <Image
                         src={wallet.icon}
                         alt={wallet.name}
+                        width={32}
+                        height={32}
                         className="w-8 h-8 rounded"
                       />
                       <div className="flex-1">
@@ -133,7 +136,7 @@ export const WalletModal = ({ isOpen, onClose }: WalletModalProps) => {
 
               <div className="text-center pt-4 border-t border-border/50">
                 <p className="text-xs text-muted-foreground">
-                  Don't have a wallet?{" "}
+                  Don&apos;t have a wallet?{" "}
                   <a
                     href="https://docs.cardano.org/new-to-cardano/getting-started-wallet/"
                     target="_blank"

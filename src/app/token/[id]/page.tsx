@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, ExternalLink, Share2, Heart, MessageCircle } from "lucide-react";
+import { ArrowLeft, Share2, Heart, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { TokenHeader } from "@/components/token/TokenHeader";
@@ -26,7 +26,7 @@ const mockTokenData = {
   holders: "1,247",
   bondingProgress: 94,
   
-  // FIX: Chuyển thành string để khớp với interface của BondingCurveVisual
+  // FIX: Convert to string to match BondingCurveVisual interface
   raised: "₳94,000", 
   target: "₳100,000",
 
@@ -39,8 +39,8 @@ const mockTokenData = {
 };
 
 const TokenDetail = () => {
-  const params = useParams();
-  const tokenId = params.id as string;
+  const _params = useParams();
+  // const tokenId = params.id as string; // Not used currently
 
   // In a real app, fetch token data based on tokenId
   const token = mockTokenData;

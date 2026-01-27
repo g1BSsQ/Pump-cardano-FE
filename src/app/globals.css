@@ -1,26 +1,392 @@
+/* * Tailwind CSS v4 - Global CSS for Next.js App Router
+ * File: src/app/globals.css
+ * PUMP.CARDANO - Deep Cyber-Dark Theme
+ */
 @import "tailwindcss";
+@plugin "tailwindcss-animate";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
+/* ========================================
+   1. THEME CONFIGURATION
+   ======================================== */
+@theme {
+  /* --- COLORS (Bắt buộc để có class border-border, bg-primary...) --- */
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  /* Sidebar Colors */
+  --color-sidebar: var(--sidebar-background);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Custom Neon Tokens */
+  --color-glow-cyan: var(--glow-cyan);
+  --color-glow-magenta: var(--glow-magenta);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  /* --- FONTS --- */
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* --- RADIUS --- */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+
+  /* --- ANIMATIONS --- */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-pulse-custom: pulse-custom 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-border-glow: border-glow 3s linear infinite;
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-slide-up: slide-up 0.4s ease-out;
+  --animate-fade-in: fade-in 0.3s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+
+    to {
+      height: 0;
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  @keyframes pulse-custom {
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  @keyframes border-glow {
+    0% {
+      background-position: 0% 50%;
+    }
+
+    100% {
+      background-position: 200% 50%;
+    }
+  }
+
+  @keyframes pulse-glow {
+
+    0%,
+    100% {
+      box-shadow: 0 0 20px oklch(var(--glow-cyan) / 0.3), 0 0 40px oklch(var(--glow-cyan) / 0.1);
+    }
+
+    50% {
+      box-shadow: 0 0 30px oklch(var(--glow-cyan) / 0.5), 0 0 60px oklch(var(--glow-cyan) / 0.2);
+    }
+  }
+
+  @keyframes float {
+
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ========================================
+   2. CSS VARIABLES (Theme Values)
+   ======================================== */
+:root {
+  --radius: 0.75rem;
+  
+    /* Core Colors (OKLCH) */
+    --background: oklch(0.13 0.03 250);
+    --foreground: oklch(0.98 0.01 250);
+  
+    --card: oklch(0.15 0.03 250);
+    --card-foreground: oklch(0.98 0.01 250);
+  
+    --popover: oklch(0.15 0.03 250);
+    --popover-foreground: oklch(0.98 0.01 250);
+  
+    --primary: oklch(0.75 0.18 195);
+    --primary-foreground: oklch(0.13 0.03 250);
+  
+    --secondary: oklch(0.25 0.04 250);
+    --secondary-foreground: oklch(0.98 0.01 250);
+  
+    --muted: oklch(0.30 0.03 250);
+    --muted-foreground: oklch(0.60 0.02 250);
+  
+    --accent: oklch(0.65 0.28 330);
+    --accent-foreground: oklch(0.98 0.01 250);
+  
+    --destructive: oklch(0.60 0.22 25);
+    --destructive-foreground: oklch(0.98 0.01 250);
+  
+    --border: oklch(0.30 0.03 250);
+    --input: oklch(0.22 0.03 250);
+    --ring: oklch(0.75 0.18 195);
+  
+    /* Custom Tokens (Values only for oklch usage) */
+    --glow-cyan: 0.75 0.18 195;
+    --glow-magenta: 0.65 0.28 330;
+    --success: oklch(0.65 0.20 145);
+    --warning: oklch(0.75 0.18 70);
+  
+    /* Glass Effects */
+    --glass-bg: oklch(0.18 0.03 250 / 0.6);
+    --glass-border: oklch(0.35 0.03 250 / 0.5);
+    --glass-highlight: oklch(0.98 0.01 250 / 0.05);
+  
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, oklch(0.75 0.18 195), oklch(0.70 0.16 210));
+    --gradient-accent: linear-gradient(135deg, oklch(0.65 0.28 330), oklch(0.60 0.25 300));
+  }
+  
+  /* ========================================
+     3. BASE STYLES
+     ======================================== */
+  @layer base {
+    * {
+      @apply border-border;
+    }
+  
+    /* <-- ĐÃ SỬA: Đóng ngoặc đúng chỗ */
+  
+    body {
+      @apply bg-background text-foreground antialiased;
+      font-family: var(--font-sans);
+    }
+  
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+  
+    ::-webkit-scrollbar-track {
+      @apply bg-background;
+    }
+  
+    ::-webkit-scrollbar-thumb {
+      @apply bg-muted rounded-full;
+    }
+  
+    ::-webkit-scrollbar-thumb:hover {
+      @apply bg-muted-foreground/50;
+    }
+  }
+  
+  /* ========================================
+     4. COMPONENT STYLES
+     ======================================== */
+  @layer components {
+  
+    /* Glass Panel */
+    .glass-panel {
+      @apply relative overflow-hidden rounded-xl;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+    }
+  
+    .glass-panel::before {
+      content: '';
+      @apply absolute inset-0 pointer-events-none;
+      background: linear-gradient(135deg, var(--glass-highlight) 0%, transparent 50%);
+    }
+  
+    /* Neon Glow Effects */
+    .glow-cyan {
+      box-shadow: 0 0 20px oklch(var(--glow-cyan) / 0.3), 0 0 40px oklch(var(--glow-cyan) / 0.1), inset 0 0 20px oklch(var(--glow-cyan) / 0.05);
+    }
+  
+    .glow-magenta {
+      box-shadow: 0 0 20px oklch(var(--glow-magenta) / 0.3), 0 0 40px oklch(var(--glow-magenta) / 0.1), inset 0 0 20px oklch(var(--glow-magenta) / 0.05);
+    }
+  
+    .glow-text-cyan {
+      text-shadow: 0 0 10px oklch(var(--glow-cyan) / 0.8), 0 0 20px oklch(var(--glow-cyan) / 0.5), 0 0 40px oklch(var(--glow-cyan) / 0.3);
+    }
+  
+    .glow-text-magenta {
+      text-shadow: 0 0 10px oklch(var(--glow-magenta) / 0.8), 0 0 20px oklch(var(--glow-magenta) / 0.5), 0 0 40px oklch(var(--glow-magenta) / 0.3);
+    }
+  
+    /* Animated Border Glow */
+    .border-glow {
+      @apply relative;
+    }
+  
+    .border-glow::after {
+      content: '';
+      @apply absolute inset-0 rounded-xl pointer-events-none;
+      background: linear-gradient(90deg, oklch(var(--glow-cyan)), oklch(var(--glow-magenta)), oklch(var(--glow-cyan)));
+      background-size: 200% 100%;
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask-composite: exclude;
+      padding: 2px;
+      animation: border-glow 3s linear infinite;
+    }
+  
+    /* Pulse Glow Animation */
+    .pulse-glow {
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+  
+    /* Monospace Numbers */
+    .font-mono-numbers {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+  
+    /* Card Hover Effect */
+    .card-hover {
+      @apply transition-all duration-300 ease-out;
+    }
+  
+    .card-hover:hover {
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 20px 40px oklch(0.13 0.03 250 / 0.5), 0 0 30px oklch(var(--glow-cyan) / 0.1);
+    }
+  
+    /* Bonding Curve Bar */
+    .bonding-bar {
+      @apply relative h-2 rounded-full overflow-hidden bg-muted;
+    }
+  
+    .bonding-bar-fill {
+      @apply h-full rounded-full transition-all duration-500;
+      background: var(--gradient-primary);
+      box-shadow: 0 0 10px oklch(var(--glow-cyan) / 0.5);
+    }
+
+    /* Gradient Text */
+    .gradient-text {
+      @apply bg-clip-text text-transparent;
+      background-image: var(--gradient-primary);
+    }
+  
+    .gradient-text-accent {
+      @apply bg-clip-text text-transparent;
+      background-image: var(--gradient-accent);
+    }
+
+    /* Neon Button */
+    .btn-neon {
+      @apply relative overflow-hidden font-semibold;
+      background: var(--gradient-primary);
+      transition: all 0.3s ease;
+  }
+    .btn-neon:hover {
+      box-shadow: 0 0 20px oklch(var(--glow-cyan) / 0.5), 0 0 40px oklch(var(--glow-cyan) / 0.2);
+      transform: translateY(-1px);
+    }
+  
+    .btn-neon:active {
+      transform: translateY(1px);
+  
+
+    /* Particles Container */
+    .particles {
+      @apply absolute inset-0 overflow-hidden pointer-events-none;
+    }
+}
+
+/* ========================================
+   5. UTILITY ANIMATIONS
+   ======================================== */
+@layer utilities {
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.4s ease-out;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+}
 }

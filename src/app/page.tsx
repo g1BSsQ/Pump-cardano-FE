@@ -1,7 +1,7 @@
 "use client";
 
-import { KingOfHillCard } from "@/components/dashboard/KingOfHillCard";
-import { TokenGrid } from "@/components/dashboard/TokenGrid";
+import { KingOfHillCard } from "@/features/dashboard/components/KingOfHillCard";
+import { TokenGrid } from "@/features/dashboard/components/TokenGrid";
 
 // ... (Giữ nguyên phần code constants kingToken và stats như cũ) ...
 const kingToken = {
@@ -31,3 +31,6 @@ export default function DashboardPage() {
     </div>
   );
 };
+
+
+

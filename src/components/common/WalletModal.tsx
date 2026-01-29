@@ -154,3 +154,4 @@ export const WalletModal = ({ isOpen, onClose }: WalletModalProps) => {
     </Dialog>
   );
 };
+

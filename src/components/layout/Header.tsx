@@ -1,8 +1,8 @@
 import { Search, Wallet, ChevronDown, Sparkles, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { cn } from "@/utils/utils";
-import { WalletModal } from "@/components/ui/WalletModal";
+import { cn } from "@/lib/utils";
+import { WalletModal } from "@/components/common/WalletModal";
 import { useWallet, useAddress } from "@meshsdk/react";
 
 export const Header = () => {
@@ -91,3 +91,5 @@ export const Header = () => {
     </header>
   );
 };
+
+

@@ -5,11 +5,11 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Share2, Heart, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { TokenHeader } from "@/components/token/TokenHeader";
-import { BondingCurveVisual } from "@/components/token/BondingCurveVisual";
-import { SwapPanel } from "@/components/token/SwapPanel";
-import { TradesFeed } from "@/components/token/TradesFeed";
-import { TradingViewChart } from "@/components/token/TradingViewChart";
+import { TokenHeader } from "@/features/token/components/TokenHeader";
+import { BondingCurveVisual } from "@/features/token/components/BondingCurveVisual";
+import { SwapPanel } from "@/features/token/components/SwapPanel";
+import { TradesFeed } from "@/features/token/components/TradesFeed";
+import { TradingViewChart } from "@/features/token/components/TradingViewChart";
 
 const mockTokenData = {
   id: "1",

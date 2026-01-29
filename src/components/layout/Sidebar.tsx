@@ -10,7 +10,7 @@ import {
   ChevronRight,
   Sparkles
 } from "lucide-react";
-import { cn } from "@/utils/utils";
+import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
 const navItems = [
@@ -130,3 +130,5 @@ export const Sidebar = () => {
     </motion.aside>
   );
 };
+
+

@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pump Cardano FE
+
+A Next.js application for Cardano token trading and portfolio management.
+
+## Architecture
+
+This project follows a **feature-based architecture** for better maintainability and scalability:
+
+### Directory Structure
+
+```
+src/
+├── app/                    # Next.js App Router (routing layer)
+│   ├── layout.tsx         # Root layout
+│   ├── page.tsx          # Home page
+│   ├── create/           # Create token page
+│   ├── docs/             # Documentation page
+│   ├── portfolio/        # Portfolio page
+│   └── token/[id]/       # Dynamic token page
+├── features/              # Business logic (feature-based)
+│   ├── create/           # Token creation feature
+│   ├── dashboard/        # Dashboard feature
+│   ├── docs/             # Documentation feature
+│   ├── portfolio/        # Portfolio feature
+│   └── token/            # Token detail feature
+├── components/            # Reusable UI components
+│   ├── ui/               # shadcn/ui components
+│   ├── layout/           # Layout components
+│   └── common/           # Common components
+├── hooks/                 # Custom React hooks
+├── lib/                   # Utilities and helpers
+│   └── utils/            # Utility functions
+└── services/              # API services and external integrations
+```
+
+### Key Principles
+
+- **Feature-based**: Each feature is self-contained with its own components, logic, and types
+- **Separation of Concerns**: Clear separation between routing (app/), business logic (features/), and UI (components/)
+- **Reusability**: Shared components in `components/`, utilities in `lib/`, services in `services/`
+- **Next.js Conventions**: App Router for routing, no confusion with `page.tsx` files in features
+
+### Features
+
+- **Token Creation**: Create new tokens on Cardano
+- **Token Trading**: Swap tokens with bonding curve mechanics
+- **Portfolio Management**: Track and manage token holdings
+- **Dashboard**: Overview of market data and trending tokens
+- **Documentation**: Project documentation and guides
+
+## Tech Stack
+
+- **Framework**: Next.js 14+ with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: Radix UI (shadcn/ui)
+- **Blockchain**: Mesh SDK for Cardano integration
+- **File Storage**: Pinata for IPFS uploads
+- **State Management**: TanStack Query for data fetching
+- **Animations**: Framer Motion
 
 ## Getting Started
 
-First, run the development server:
-
+1. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Run the development server:
+```bash
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
 
-To learn more about Next.js, take a look at the following resources:
+## Environment Variables
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Create a `.env.local` file with the following variables:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```env
+# Add your environment variables here
+```
 
-## Deploy on Vercel
+## Contributing
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Follow the established architecture patterns
+2. Keep features self-contained
+3. Use TypeScript for type safety
+4. Follow Next.js and React best practices

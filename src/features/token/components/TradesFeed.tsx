@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { ArrowUpRight, ArrowDownRight, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/utils/utils";
+import { cn } from "@/lib/utils";
 
 interface Trade {
   id: string;
@@ -187,3 +187,5 @@ export const TradesFeed = () => {
     </div>
   );
 };
+
+

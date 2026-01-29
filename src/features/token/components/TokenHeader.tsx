@@ -102,3 +102,4 @@ export const TokenHeader = ({ token }: TokenHeaderProps) => {
     </motion.div>
   );
 };
+

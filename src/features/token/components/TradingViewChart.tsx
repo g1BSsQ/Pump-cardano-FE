@@ -55,3 +55,4 @@ export const TradingViewChart = ({ symbol = "BINANCE:ADAUSDT" }: TradingViewChar
     </div>
   );
 };
+

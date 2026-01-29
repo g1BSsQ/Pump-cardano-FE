@@ -79,3 +79,4 @@ export const TokenCard = ({ token, index }: TokenCardProps) => {
     </Link>
   );
 };
+

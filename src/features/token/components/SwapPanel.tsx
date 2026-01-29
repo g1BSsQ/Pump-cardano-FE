@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ArrowDownUp, Settings, ChevronDown, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/utils/utils";
+import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
@@ -200,3 +200,6 @@ export const SwapPanel = ({ token }: SwapPanelProps) => {
     </div>
   );
 };
+
+
+

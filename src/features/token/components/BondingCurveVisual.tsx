@@ -127,3 +127,4 @@ export const BondingCurveVisual = ({ progress, raised, target }: BondingCurveVis
     </div>
   );
 };
+

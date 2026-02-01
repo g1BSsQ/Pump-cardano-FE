@@ -149,6 +149,9 @@ export const useCreateToken = (): UseCreateTokenReturn => {
             image: `${cid}`,
             mediaType: file.type || "image/jpg",
             description: formData.description,
+            ...(formData.twitter && { twitter: formData.twitter }),
+            ...(formData.telegram && { telegram: formData.telegram }),
+            ...(formData.website && { website: formData.website }),
           },
         },
       };

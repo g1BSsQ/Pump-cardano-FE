@@ -31,6 +31,9 @@ export interface TokenFormData {
   ticker: string;
   description: string;
   amount: number;
+  twitter?: string;
+  telegram?: string;
+  website?: string;
 }
 
 // Status types for token creation process

@@ -29,7 +29,10 @@ export const CreateTokenForm = () => {
       name: assetName,
       ticker,
       description: assetDescription,
-      amount: assetQuantity
+      amount: assetQuantity,
+      twitter: twitter.trim() || undefined,
+      telegram: telegram.trim() || undefined,
+      website: website.trim() || undefined
     });
   };
 

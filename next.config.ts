@@ -1,17 +1,22 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  reactCompiler: true,
   images: {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'images.unsplash.com',
+        hostname: 'ipfs.io', // <--- Cho phép load ảnh từ IPFS
       },
+      {
+        protocol: 'https',
+        hostname: 'cardano-preprod.blockfrost.io',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com', // Cho ảnh mock data cũ (nếu còn dùng)
+      }
     ],
   },
 };
 
 export default nextConfig;
-

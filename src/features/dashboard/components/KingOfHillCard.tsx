@@ -95,7 +95,7 @@ export const KingOfHillCard = ({ token }: KingOfHillCardProps) => {
           <div className="relative">
             <div className="w-32 h-32 lg:w-40 lg:h-40 rounded-2xl overflow-hidden glow-cyan">
               <Image
-                src={token.image}
+                src={`${token.image}`}
                 alt={token.name}
                 width={256}
                 height={256}

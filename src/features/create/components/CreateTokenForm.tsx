@@ -15,7 +15,7 @@ export const CreateTokenForm = () => {
   // Form state (UI-specific)
   const [assetName, setAssetName] = useState("");
   const [assetDescription, setAssetDescription] = useState("");
-  const [assetQuantity, setAssetQuantity] = useState(1);
+  const [assetQuantity] = useState(1_000_000_000); // Fixed: 1 billion tokens
   const [ticker, setTicker] = useState("");
   const [twitter, setTwitter] = useState("");
   const [telegram, setTelegram] = useState("");
@@ -156,18 +156,6 @@ export const CreateTokenForm = () => {
                 value={assetDescription}
                 onChange={(e) => setAssetDescription(e.target.value)}
                 rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="asset-quantity">Quantity *</Label>
-              <Input
-                id="asset-quantity"
-                type="number"
-                min="1"
-                placeholder="1"
-                value={assetQuantity}
-                onChange={(e) => setAssetQuantity(Math.max(1, parseInt(e.target.value) || 1))}
               />
             </div>
 

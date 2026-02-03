@@ -57,3 +57,44 @@ export interface UseCreateTokenReturn {
     setFile: (file: File | undefined) => void;
   };
 }
+export interface Head {
+  port: number;
+  headId: string | null;
+  status: 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible';
+  lastUpdated: string;
+}
+export interface Token {
+  assetId: string;
+  policyId: string;
+  tokenNameHex: string;
+  tokenName: string;
+  ticker: string;
+  totalSupply: string;
+  decimals: number;
+  ownerAddress: string;
+  txHash: string;
+  logoUrl?: string;
+  description?: string;
+  socialLinks?: Record<string, string>;
+  
+  // Trường mới: Token đang nằm ở Head nào?
+  headPort?: number;
+  head?: Head;
+  
+  createdAt: string;
+  
+  currentPrice?: string;      // Giá hiện tại
+  marketCap?: string;         // Vốn hóa
+  volume24h?: string;         // Volume 24h
+  priceChange24h?: number;    // Biến động giá %
+}
+
+export interface TokensResponse {
+  data: Token[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    lastPage: number;
+  };
+}

@@ -1,205 +1,263 @@
-import { useState } from "react";
-import { ArrowDownUp, Settings, ChevronDown, Zap } from "lucide-react";
+'use client';
+
+import { useState, useEffect } from "react";
+import axios from "axios";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
+import { Slider } from "@/components/ui/slider"; // Import Slider
+import { Settings, ArrowDown, Wallet, Info } from "lucide-react";
+import { Token } from "@/features/create/types";
+import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-interface SwapPanelProps {
-  token: {
-    ticker: string;
-    image: string;
-    price: string;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+// Mock Balance (Sau này thay bằng balance thật từ ví)
+const MOCK_ADA_BALANCE = 1500; 
+const MOCK_TOKEN_BALANCE = 10000;
+
+export const SwapPanel = ({ token }: { token: Token }) => {
+  const [mode, setMode] = useState<'buy' | 'sell'>('buy');
+  const [amount, setAmount] = useState<string>(""); 
+  const [estimated, setEstimated] = useState<string>("0");
+  const [loading, setLoading] = useState(false);
+  const [sliderVal, setSliderVal] = useState([0]); // State cho Slider (0-100%)
+  const [slippage, setSlippage] = useState("5"); // Mặc định slippage 5%
+
+  const price = Number(token.currentPrice) || 0.000001;
+
+  // Lấy balance hiện tại theo mode
+  const currentBalance = mode === 'buy' ? MOCK_ADA_BALANCE : MOCK_TOKEN_BALANCE;
+
+  // --- 1. TÍNH TOÁN KHI NHẬP SỐ ---
+  useEffect(() => {
+    const val = parseFloat(amount);
+    if (isNaN(val) || val <= 0) {
+      setEstimated("0");
+      return;
+    }
+
+    // Update Slider ngược lại (Nếu user gõ phím)
+    // Ví dụ: Có 100 ADA, gõ 50 -> Slider nhảy về 50%
+    if (currentBalance > 0) {
+        const percent = Math.min((val / currentBalance) * 100, 100);
+        // Chỉ update slider nếu chênh lệch đáng kể để tránh loop
+        if (Math.abs(percent - sliderVal[0]) > 1) {
+             setSliderVal([percent]);
+        }
+    }
+
+    if (mode === 'buy') {
+      const tokenReceived = val / price;
+      setEstimated(tokenReceived.toLocaleString('en-US', { maximumFractionDigits: 2 }));
+    } else {
+      const adaReceived = val * price;
+      setEstimated(adaReceived.toLocaleString('en-US', { maximumFractionDigits: 6 }));
+    }
+  }, [amount, mode, price, currentBalance]);
+
+  // --- 2. XỬ LÝ KHI KÉO SLIDER ---
+  const handleSliderChange = (vals: number[]) => {
+      setSliderVal(vals);
+      const percent = vals[0];
+      
+      if (percent === 0) {
+          setAmount("");
+          return;
+      }
+
+      // Tính số lượng dựa trên % Balance
+      const calculatedAmount = (currentBalance * percent) / 100;
+      
+      // Làm tròn số đẹp
+      // Nếu là ADA (Buy) thì lấy 2 số lẻ, Token (Sell) thì lấy số nguyên hoặc 2 số lẻ
+      const formattedAmount = mode === 'buy' 
+        ? calculatedAmount.toFixed(2)
+        : calculatedAmount.toFixed(2);
+
+      setAmount(formattedAmount);
   };
-}
 
-export const SwapPanel = ({ token }: SwapPanelProps) => {
-  const [mode, setMode] = useState<"buy" | "sell">("buy");
-  const [amount, setAmount] = useState("");
-  const [showSettings, setShowSettings] = useState(false);
-  const [slippage, setSlippage] = useState("0.5");
+  // --- 3. XỬ LÝ GIAO DỊCH ---
+  const handleTrade = async () => {
+    if (!amount || parseFloat(amount) <= 0) return;
+    
+    try {
+      setLoading(true);
+      const fakeTrader = "addr_test1_fake_user_" + Math.floor(Math.random() * 1000);
 
-  const presetAmounts = ["10", "50", "100", "500"];
+      let adaAmount = 0;
+      let tokenAmount = 0;
+
+      if (mode === 'buy') {
+          adaAmount = parseFloat(amount);
+          tokenAmount = parseFloat(estimated.replace(/,/g, ''));
+      } else {
+          tokenAmount = parseFloat(amount);
+          adaAmount = parseFloat(estimated.replace(/,/g, ''));
+      }
+
+      // Gửi cả Slippage lên backend (để backend check Hydra logic)
+      await axios.post(`${API_URL}/tokens/trade/simulate`, {
+        assetId: token.assetId,
+        type: mode === 'buy' ? 'BUY' : 'SELL',
+        adaAmount,
+        tokenAmount,
+        traderAddress: fakeTrader,
+        slippage: parseFloat(slippage) // Gửi slippage lên
+      });
+
+      toast.success(`${mode === 'buy' ? 'Buy' : 'Sell'} successful!`);
+      setAmount("");
+      setSliderVal([0]);
+      setEstimated("0");
+      
+    } catch (error) {
+      console.error("Trade failed", error);
+      toast.error("Trade failed. Price moved too fast!"); // Báo lỗi kiểu Slippage
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="glass-panel p-4 space-y-4">
-      {/* Mode Toggle */}
-      <div className="flex p-1 bg-secondary/50 rounded-lg">
-        <button
-          onClick={() => setMode("buy")}
-          className={cn(
-            "flex-1 py-2 rounded-md text-sm font-semibold transition-all",
-            mode === "buy" 
-              ? "bg-success text-primary-foreground shadow-lg shadow-success/25" 
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Buy
-        </button>
-        <button
-          onClick={() => setMode("sell")}
-          className={cn(
-            "flex-1 py-2 rounded-md text-sm font-semibold transition-all",
-            mode === "sell" 
-              ? "bg-destructive text-destructive-foreground shadow-lg shadow-destructive/25" 
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Sell
-        </button>
-      </div>
+    <div className="bg-card/50 backdrop-blur-md border border-border/50 rounded-xl overflow-hidden shadow-xl">
+      {/* TABS */}
+      <Tabs defaultValue="buy" onValueChange={(v) => {
+          setMode(v as 'buy' | 'sell');
+          setAmount("");
+          setSliderVal([0]);
+      }} className="w-full">
+        <TabsList className="w-full grid grid-cols-2 rounded-none bg-transparent border-b border-border/50 p-0 h-12">
+          <TabsTrigger value="buy" className="rounded-none h-full data-[state=active]:text-green-500 data-[state=active]:border-b-2 data-[state=active]:border-green-500 font-bold">Buy</TabsTrigger>
+          <TabsTrigger value="sell" className="rounded-none h-full data-[state=active]:text-red-500 data-[state=active]:border-b-2 data-[state=active]:border-red-500 font-bold">Sell</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-      {/* Settings Toggle */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">
-          {mode === "buy" ? "You pay" : "You sell"}
-        </span>
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          className={cn(
-            "p-1.5 rounded-lg transition-colors",
-            showSettings ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Settings className="w-4 h-4" />
-        </button>
-      </div>
+      <div className="p-4 space-y-5">
+        
+        {/* SETTINGS & BALANCE */}
+        <div className="flex justify-between items-center text-xs text-muted-foreground">
+            {/* Popover chỉnh Max Slippage */}
+            <Popover>
+                <PopoverTrigger className="flex items-center gap-1 hover:text-primary transition-colors">
+                    <Settings className="w-3 h-3" />
+                    <span>Slippage: {slippage}%</span>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-3">
+                    <div className="space-y-2">
+                        <span className="text-xs font-semibold">Max Slippage</span>
+                        <div className="grid grid-cols-3 gap-2">
+                            {['1', '5', '10'].map((s) => (
+                                <Button 
+                                    key={s} 
+                                    variant={slippage === s ? "default" : "outline"} 
+                                    size="sm" 
+                                    className="h-7 text-xs"
+                                    onClick={() => setSlippage(s)}
+                                >{s}%</Button>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-2 border rounded px-2 py-1">
+                            <Input 
+                                className="h-6 border-none p-0 text-right text-xs" 
+                                value={slippage} 
+                                onChange={(e) => setSlippage(e.target.value)}
+                            />
+                            <span className="text-xs">%</span>
+                        </div>
+                    </div>
+                </PopoverContent>
+            </Popover>
 
-      {/* Settings Panel */}
-      <AnimatePresence>
-        {showSettings && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="p-3 bg-secondary/30 rounded-lg space-y-2">
-              <span className="text-xs text-muted-foreground">Slippage Tolerance</span>
-              <div className="flex gap-2">
-                {["0.1", "0.5", "1.0"].map((value) => (
-                  <button
-                    key={value}
-                    onClick={() => setSlippage(value)}
-                    className={cn(
-                      "flex-1 py-1.5 text-xs rounded-md transition-colors",
-                      slippage === value 
-                        ? "bg-primary text-primary-foreground" 
-                        : "bg-muted text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {value}%
-                  </button>
-                ))}
-                <input
-                  type="text"
-                  value={slippage}
-                  onChange={(e) => setSlippage(e.target.value)}
-                  className="w-16 px-2 py-1.5 text-xs text-center rounded-md bg-muted border border-border focus:outline-none focus:border-primary"
+            <div className="flex items-center gap-1">
+                <Wallet className="w-3 h-3" />
+                <span>Bal: {currentBalance.toLocaleString()} {mode === 'buy' ? 'ADA' : token.ticker}</span> 
+            </div>
+        </div>
+
+        {/* INPUT AREA */}
+        <div className="space-y-3">
+            <div className="bg-background/50 p-3 rounded-lg border border-border/50 hover:border-primary/50 transition-colors">
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>Amount</span>
+                    <span 
+                        className="font-mono text-primary cursor-pointer hover:underline"
+                        onClick={() => handleSliderChange([100])} // Bấm Max = 100%
+                    >
+                        Max
+                    </span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Input 
+                        type="number" 
+                        placeholder="0.0" 
+                        className="border-none bg-transparent text-2xl font-bold p-0 h-auto focus-visible:ring-0 shadow-none"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                    />
+                    <div className="flex items-center gap-2 bg-card border border-border px-2 py-1 rounded-full shrink-0">
+                        <span className="font-bold text-sm">
+                            {mode === 'buy' ? 'ADA' : token.ticker}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {/* --- SLIDER COMPONENT --- */}
+            <div className="px-1 py-2">
+                <div className="flex justify-between text-[10px] text-muted-foreground mb-2 px-1">
+                    <span>0%</span>
+                    <span>25%</span>
+                    <span>50%</span>
+                    <span>75%</span>
+                    <span>100%</span>
+                </div>
+                <Slider 
+                    value={sliderVal} 
+                    onValueChange={handleSliderChange} 
+                    max={100} 
+                    step={1}
+                    className={`cursor-pointer ${mode === 'buy' ? 'text-green-500' : 'text-red-500'}`}
                 />
-              </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
 
-      {/* Input - From */}
-      <div className="p-4 bg-secondary/30 rounded-xl space-y-3">
-        <div className="flex items-center justify-between">
-          <input
-            type="text"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
-            className="bg-transparent text-2xl font-mono font-bold outline-none w-full placeholder:text-muted-foreground"
-          />
-          <button className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors">
-            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold">
-              ₳
+        {/* OUTPUT & INFO */}
+        <div className="bg-secondary/20 p-3 rounded-lg border border-border/50 text-xs space-y-2">
+            <div className="flex justify-between">
+                <span className="text-muted-foreground">You receive</span>
+                <span className="font-bold font-mono text-sm">{estimated} {mode === 'buy' ? token.ticker : 'ADA'}</span>
             </div>
-            <span className="font-semibold">ADA</span>
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-          </button>
+            {amount && (
+                <>
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Price Impact</span>
+                        <span className="text-orange-500">~2.5%</span> 
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Hydra Fee</span>
+                        <span className="text-green-500">~0.00 ADA (Free)</span>
+                    </div>
+                </>
+            )}
         </div>
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>≈ $0.00</span>
-          <span>Balance: 1,234.56 ADA</span>
-        </div>
-        <div className="flex gap-2">
-          {presetAmounts.map((preset) => (
-            <button
-              key={preset}
-              onClick={() => setAmount(preset)}
-              className="flex-1 py-1.5 text-xs font-medium rounded-md bg-muted hover:bg-muted/80 transition-colors"
-            >
-              {preset} ₳
-            </button>
-          ))}
-        </div>
-      </div>
 
-      {/* Swap Arrow */}
-      <div className="flex justify-center -my-2 relative z-10">
-        <button className="p-2 rounded-lg bg-secondary border border-border hover:border-primary/50 hover:bg-secondary/80 transition-all">
-          <ArrowDownUp className="w-4 h-4" />
-        </button>
+        {/* MAIN BUTTON */}
+        <Button 
+            className={`w-full font-bold text-lg h-12 shadow-lg transition-all ${
+                mode === 'buy' 
+                ? 'bg-green-500 hover:bg-green-600 shadow-green-500/20 text-white' 
+                : 'bg-red-500 hover:bg-red-600 shadow-red-500/20 text-white'
+            }`}
+            onClick={handleTrade}
+            disabled={loading || !amount || parseFloat(amount) <= 0}
+        >
+            {loading ? "Processing..." : (mode === 'buy' ? `Buy ${token.ticker}` : `Sell ${token.ticker}`)}
+        </Button>
       </div>
-
-      {/* Output - To */}
-      <div className="p-4 bg-secondary/30 rounded-xl space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-2xl font-mono font-bold text-muted-foreground">
-            {amount ? (parseFloat(amount) * 1000000).toLocaleString() : "0.00"}
-          </span>
-          <button className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors">
-            <Image
-              src={token.image}
-              alt={token.ticker}
-              width={24}
-              height={24}
-              className="w-6 h-6 rounded-full"
-            />
-            <span className="font-semibold">${token.ticker}</span>
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-          </button>
-        </div>
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>≈ $0.00</span>
-          <span>Balance: 0 {token.ticker}</span>
-        </div>
-      </div>
-
-      {/* Trade Info */}
-      <div className="space-y-2 text-xs">
-        <div className="flex items-center justify-between text-muted-foreground">
-          <span>Rate</span>
-          <span className="font-mono">1 ADA = 1,000,000 {token.ticker}</span>
-        </div>
-        <div className="flex items-center justify-between text-muted-foreground">
-          <span>Slippage</span>
-          <span className="font-mono">{slippage}%</span>
-        </div>
-        <div className="flex items-center justify-between text-muted-foreground">
-          <span>Network Fee</span>
-          <span className="font-mono">~0.17 ADA</span>
-        </div>
-      </div>
-
-      {/* Action Button */}
-      <Button 
-        variant="neon" 
-        size="lg" 
-        className={cn(
-          "w-full",
-          mode === "sell" && "bg-gradient-to-r from-destructive to-accent"
-        )}
-      >
-        <Zap className="w-4 h-4" />
-        {mode === "buy" ? `Buy $${token.ticker}` : `Sell $${token.ticker}`}
-      </Button>
     </div>
   );
 };
-
-
-

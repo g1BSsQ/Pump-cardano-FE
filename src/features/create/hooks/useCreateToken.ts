@@ -182,7 +182,7 @@ export const useCreateToken = (): UseCreateTokenReturn => {
       // --- BƯỚC 4: GỌI BACKEND ĐỂ ĐĂNG KÝ ---
       try {
         await axios.post(`${API_URL}/tokens/register`, { txHash: txHashResult });
-      } catch (beError) {
+      } catch {
         // Backend error không làm gián đoạn TX on-chain thành công
       }
       // ---------------------------------------------------

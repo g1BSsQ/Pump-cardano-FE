@@ -9,15 +9,20 @@ import { useEffect, useState } from "react";
 
 interface KingOfHillCardProps {
   token: {
-    id: string;
-    name: string;
+    assetId: string;
+    tokenName: string;
     ticker: string;
-    image: string;
+    logoUrl?: string;
     marketCap: string;
     change24h: number;
     bondingProgress: number;
     holders: number;
     volume24h: string;
+    description?: string;
+    headPort?: number;
+    head?: {
+      status: string;
+    };
   };
 }
 
@@ -51,12 +56,13 @@ export const KingOfHillCard = ({ token }: KingOfHillCardProps) => {
   }, []);
 
   return (
-    <Link href={`/token/${token.id}`}>
+    <Link href={`/token/${token.assetId}`}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="relative glass-panel border-glow p-6 pulse-glow overflow-hidden group"
+        style={{ zIndex: 1 }}
       >
         {/* Render Particles */}
         {particles.length > 0 && (
@@ -94,13 +100,21 @@ export const KingOfHillCard = ({ token }: KingOfHillCardProps) => {
           {/* Token Image */}
           <div className="relative">
             <div className="w-32 h-32 lg:w-40 lg:h-40 rounded-2xl overflow-hidden glow-cyan">
-              <Image
-                src={`${token.image}`}
-                alt={token.name}
-                width={256}
-                height={256}
-                className="w-full h-full object-cover"
-              />
+              {token.logoUrl ? (
+                <Image
+                  src={`https://ipfs.io/ipfs/${token.logoUrl}`}
+                  alt={token.tokenName}
+                  width={256}
+                  height={256}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                  <span className="text-4xl font-bold text-primary">
+                    {token.ticker?.slice(0, 2) || '?'}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-success flex items-center justify-center animate-bounce">
               <Flame className="w-5 h-5 text-primary-foreground" />
@@ -111,10 +125,17 @@ export const KingOfHillCard = ({ token }: KingOfHillCardProps) => {
           <div className="flex-1 space-y-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <h2 className="text-2xl lg:text-3xl font-bold">{token.name}</h2>
+                <h2 className="text-2xl lg:text-3xl font-bold">{token.tokenName}</h2>
                 <span className="text-xl font-mono text-primary">${token.ticker}</span>
+                {token.headPort && token.head?.status === 'Open' && (
+                  <span className="text-xs bg-green-500/10 text-green-500 px-2 py-1 rounded-full border border-green-500/20">
+                    ⚡ L2
+                  </span>
+                )}
               </div>
-              <p className="text-muted-foreground text-sm">The legendary meme that conquered Cardano.</p>
+              <p className="text-muted-foreground text-sm">
+                {token.description || "The legendary token that conquered Cardano."}
+              </p>
             </div>
 
             {/* Stats Grid */}

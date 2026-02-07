@@ -105,7 +105,7 @@ export const WalletModal = ({ isOpen, onClose }: WalletModalProps) => {
                     className="w-full p-4 rounded-lg glass-panel hover:card-hover transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="flex items-center gap-3">
-                      <Image
+                      <img
                         src={wallet.icon}
                         alt={wallet.name}
                         width={32}

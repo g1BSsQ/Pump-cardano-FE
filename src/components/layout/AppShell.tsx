@@ -68,7 +68,8 @@ export const AppShell = ({ children }: AppShellProps) => {
         initial={false} // Tắt animation lúc mới load trang để tránh giật layout
         animate={{ marginLeft: sidebarWidth }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="min-h-screen relative z-10"
+        className="min-h-screen relative"
+        style={{ zIndex: 1 }}
       >
         <Header />
         <main className="p-6">

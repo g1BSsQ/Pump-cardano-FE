@@ -13,6 +13,7 @@ import {
 import { useEffect, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useParams } from 'next/navigation';
+import { formatDateTime } from '@/utils/date';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -186,7 +187,7 @@ export const CustomChart = () => {
                 const volumeData = param.seriesData.get(volumeSeries) as any;
                 
                 if (candleData) {
-                    const dateStr = new Date(Number(param.time) * 1000).toLocaleString();
+                    const dateStr = formatDateTime(Number(param.time) * 1000);
                     setTooltip({
                         visible: true,
                         o: candleData.open,

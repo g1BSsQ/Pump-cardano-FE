@@ -16,7 +16,7 @@ interface KingOfHillCardProps {
     marketCap: string;
     change24h: number;
     bondingProgress: number;
-    holders: number;
+    holders: number | null;
     volume24h: string;
     description?: string;
     headPort?: number;
@@ -148,13 +148,14 @@ export const KingOfHillCard = ({ token }: KingOfHillCardProps) => {
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">24h Change</span>
                 <p className={`text-xl font-mono font-bold flex items-center gap-1 ${token.change24h >= 0 ? 'text-success' : 'text-destructive'}`}>
                   <TrendingUp className={`w-4 h-4 ${token.change24h < 0 ? 'rotate-180' : ''}`} />
-                  {token.change24h >= 0 ? '+' : ''}{token.change24h}%
+                  {token.change24h >= 0 ? '+' : ''}{token.change24h.toFixed(2)}%
                 </p>
               </div>
               <div className="space-y-1">
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">Holders</span>
-                {/* FIX: Thêm 'en-US' để đồng nhất format số giữa server/client */}
-                <p className="text-xl font-mono font-bold">{token.holders.toLocaleString('en-US')}</p>
+                <p className="text-xl font-mono font-bold">
+                  {token.holders !== null ? token.holders.toLocaleString('en-US') : '-'}
+                </p>
               </div>
               <div className="space-y-1">
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">24h Volume</span>

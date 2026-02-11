@@ -1,64 +1,86 @@
-import { useState, useEffect } from "react";
-import { ArrowUpRight, ArrowDownRight, MessageSquare } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ArrowUpRight, ArrowDownRight, MessageSquare, Heart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useTrades, Trade } from "../hooks/useTrades";
+import { useComments, Comment as CommentType } from "../hooks/useComments";
+import { formatDistanceToNow } from "date-fns";
+import { formatDateTime, parseServerDate } from "@/utils/date";
 
-interface Trade {
-  id: string;
-  type: "buy" | "sell";
-  amount: string;
-  value: string;
-  address: string;
-  time: string;
+interface TradesFeedProps {
+  assetId: string;
+  userWalletAddress?: string; // Địa chỉ ví của user đang đăng nhập
 }
 
-const mockTrades: Trade[] = [
-  { id: "1", type: "buy", amount: "2.5M", value: "₳125", address: "addr1...x7k2", time: "2s ago" },
-  { id: "2", type: "sell", amount: "500K", value: "₳25", address: "addr1...m4p9", time: "15s ago" },
-  { id: "3", type: "buy", amount: "10M", value: "₳500", address: "addr1...q8n1", time: "32s ago" },
-  { id: "4", type: "buy", amount: "1M", value: "₳50", address: "addr1...j3w5", time: "1m ago" },
-  { id: "5", type: "sell", amount: "3M", value: "₳150", address: "addr1...h2k8", time: "2m ago" },
-  { id: "6", type: "buy", amount: "750K", value: "₳37.5", address: "addr1...p9r3", time: "3m ago" },
-];
-
-interface Comment {
-  id: string;
-  author: string;
-  avatar: string;
-  content: string;
-  time: string;
-  likes: number;
-}
-
-const mockComments: Comment[] = [
-  { id: "1", author: "DegenWhale", avatar: "🐋", content: "This is going to moon! Just aped in 1000 ADA 🚀", time: "5m ago", likes: 24 },
-  { id: "2", author: "CardanoMaxi", avatar: "💎", content: "Best meme on Cardano rn, dev is based", time: "12m ago", likes: 18 },
-  { id: "3", author: "NFT_Hunter", avatar: "🎨", content: "Chart looking bullish af", time: "25m ago", likes: 9 },
-];
-
-export const TradesFeed = () => {
+export const TradesFeed = ({ assetId, userWalletAddress }: TradesFeedProps) => {
   const [activeTab, setActiveTab] = useState<"trades" | "comments">("trades");
-  const [trades, setTrades] = useState(mockTrades);
+  const [showAll, setShowAll] = useState(false);
+  const [commentInput, setCommentInput] = useState("");
+  const [isPosting, setIsPosting] = useState(false);
+  
+  const { trades, loading } = useTrades(assetId, 50);
+  const { comments, loading: commentsLoading, postComment, likeComment } = useComments(assetId, 50);
+  
+  const [newTradeId, setNewTradeId] = useState<string | null>(null);
+  const prevTradesRef = useRef<Trade[]>([]);
 
-  // Simulate new trades coming in
+  // Detect new trades
   useEffect(() => {
-    const interval = setInterval(() => {
-      const newTrade: Trade = {
-        id: Date.now().toString(),
-        type: Math.random() > 0.4 ? "buy" : "sell",
-        amount: `${(Math.random() * 5 + 0.1).toFixed(1)}M`,
-        value: `₳${Math.floor(Math.random() * 500 + 10)}`,
-        address: `addr1...${Math.random().toString(36).substring(2, 6)}`,
-        time: "just now",
-      };
-      setTrades((prev) => [newTrade, ...prev.slice(0, 9)]);
-    }, 5000);
+    if (trades.length > 0 && prevTradesRef.current.length > 0) {
+      // Check if first trade is new
+      if (trades[0].id !== prevTradesRef.current[0]?.id) {
+        setNewTradeId(trades[0].id);
+        // Clear animation after it completes
+        setTimeout(() => setNewTradeId(null), 1000);
+      }
+    }
+    prevTradesRef.current = trades;
+  }, [trades]);
 
-    return () => clearInterval(interval);
-  }, []);
+  // Show only 10 trades by default
+  const displayedTrades = showAll ? trades : trades.slice(0, 10);
+
+  const formatNumber = (num: string) => {
+    const n = parseFloat(num);
+    if (isNaN(n)) return '0';
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(2)}K`;
+    return n.toFixed(2);
+  };
+
+  const formatADA = (num: string) => {
+    return `₳${formatNumber(num)}`;
+  };
+
+  const getShortAddress = (address: string) => {
+    if (!address) return '';
+    return `${address.slice(0, 8)}...${address.slice(-4)}`;
+  };
+
+  const handlePostComment = async () => {
+    if (!commentInput.trim() || !userWalletAddress) return;
+    
+    setIsPosting(true);
+    try {
+      await postComment(userWalletAddress, commentInput.trim());
+      setCommentInput('');
+    } catch (error) {
+      console.error('Error posting comment:', error);
+    } finally {
+      setIsPosting(false);
+    }
+  };
+
+  const handleLikeComment = async (commentId: string) => {
+    try {
+      await likeComment(commentId);
+    } catch (error) {
+      console.error('Error liking comment:', error);
+    }
+  };
 
   return (
-    <div className="glass-panel flex flex-col h-full">
+    <div className="glass-panel flex flex-col">
       {/* Tabs */}
       <div className="flex border-b border-border/50">
         <button
@@ -94,8 +116,8 @@ export const TradesFeed = () => {
         </button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Content - Auto height container */}
+      <div className="overflow-hidden flex flex-col">
         <AnimatePresence mode="wait">
           {activeTab === "trades" ? (
             <motion.div
@@ -103,46 +125,85 @@ export const TradesFeed = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="divide-y divide-border/30"
+              className="flex flex-col"
             >
-              <AnimatePresence>
-                {trades.map((trade, index) => (
-                  <motion.div
-                    key={trade.id}
-                    initial={index === 0 ? { opacity: 0, x: -20, backgroundColor: "hsl(var(--primary) / 0.1)" } : false}
-                    animate={{ opacity: 1, x: 0, backgroundColor: "transparent" }}
-                    transition={{ duration: 0.3 }}
-                    className="flex items-center gap-3 p-3 hover:bg-secondary/30 transition-colors"
-                  >
-                    <div className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center",
-                      trade.type === "buy" ? "bg-success/10" : "bg-destructive/10"
-                    )}>
-                      {trade.type === "buy" ? (
-                        <ArrowUpRight className="w-4 h-4 text-success" />
-                      ) : (
-                        <ArrowDownRight className="w-4 h-4 text-destructive" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={cn(
-                          "text-sm font-semibold",
-                          trade.type === "buy" ? "text-success" : "text-destructive"
+              {loading && trades.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  Loading trades...
+                </div>
+              ) : trades.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  No trades yet
+                </div>
+              ) : (
+                <>
+                  {/* Trades list - always scrollable when showAll */}
+                  <div className={cn(
+                    "divide-y divide-border/30 flex-1",
+                    showAll ? "overflow-y-auto" : "overflow-hidden"
+                  )}>
+                    {displayedTrades.map((trade) => {
+                    const isNewTrade = trade.id === newTradeId;
+                    
+                    return (
+                      <motion.div
+                        key={trade.id}
+                        initial={isNewTrade ? { opacity: 0, x: -20, backgroundColor: "hsl(var(--primary) / 0.1)" } : false}
+                        animate={{ opacity: 1, x: 0, backgroundColor: "transparent" }}
+                        transition={{ duration: 0.3 }}
+                        className="flex items-center gap-3 p-3 hover:bg-secondary/30 transition-colors"
+                      >
+                        <div className={cn(
+                          "w-8 h-8 rounded-full flex items-center justify-center",
+                          trade.type === "buy" ? "bg-success/10" : "bg-destructive/10"
                         )}>
-                          {trade.type === "buy" ? "Bought" : "Sold"}
-                        </span>
-                        <span className="font-mono text-sm">{trade.amount}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate">{trade.address}</p>
+                          {trade.type === "buy" ? (
+                            <ArrowUpRight className="w-4 h-4 text-success" />
+                          ) : (
+                            <ArrowDownRight className="w-4 h-4 text-destructive" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              "text-sm font-semibold",
+                              trade.type === "buy" ? "text-success" : "text-destructive"
+                            )}>
+                              {trade.type === "buy" ? "Bought" : "Sold"}
+                            </span>
+                            <span className="font-mono text-sm">{formatNumber(trade.tokenAmount)}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {getShortAddress(trade.traderAddress)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono text-sm font-medium">{formatADA(trade.adaAmount)}</p>
+                          <p className="text-[10px] text-muted-foreground" title={formatDateTime(parseServerDate(trade.createdAt))}>
+                            {formatDistanceToNow(parseServerDate(trade.createdAt), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                  </div>
+                  
+                  {/* View All / Show Less Button - Fixed at bottom */}
+                  {trades.length > 10 && (
+                    <div className="p-3 border-t border-border/30 flex-shrink-0">
+                      <button
+                        onClick={() => setShowAll(!showAll)}
+                        className={cn(
+                          "w-full py-2 text-sm font-medium transition-colors",
+                          !showAll ? "text-primary hover:text-primary/80" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {!showAll ? `View All (${trades.length} trades)` : "Show Less"}
+                      </button>
                     </div>
-                    <div className="text-right">
-                      <p className="font-mono text-sm font-medium">{trade.value}</p>
-                      <p className="text-[10px] text-muted-foreground">{trade.time}</p>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+                  )}
+                </>
+              )}
             </motion.div>
           ) : (
             <motion.div
@@ -150,35 +211,70 @@ export const TradesFeed = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="p-3 space-y-3"
+              className="flex-1 overflow-y-auto p-3 space-y-3"
             >
-              {mockComments.map((comment) => (
-                <div key={comment.id} className="p-3 bg-secondary/30 rounded-lg space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{comment.avatar}</span>
-                    <span className="font-semibold text-sm">{comment.author}</span>
-                    <span className="text-xs text-muted-foreground">{comment.time}</span>
-                  </div>
-                  <p className="text-sm">{comment.content}</p>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <button className="hover:text-foreground transition-colors">❤️ {comment.likes}</button>
-                    <button className="hover:text-foreground transition-colors">Reply</button>
-                  </div>
+              {commentsLoading && comments.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  Loading comments...
                 </div>
-              ))}
+              ) : comments.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  No comments yet. Be the first to comment!
+                </div>
+              ) : (
+                comments.map((comment) => (
+                  <div key={comment.id} className="p-3 bg-secondary/30 rounded-lg space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{comment.user.avatar || '👤'}</span>
+                      <span className="font-semibold text-sm">{comment.user.username}</span>
+                      <span className="text-xs text-muted-foreground" title={formatDateTime(parseServerDate(comment.createdAt))}>
+                        {formatDistanceToNow(parseServerDate(comment.createdAt), { addSuffix: true })}
+                      </span>
+                    </div>
+                    <p className="text-sm">{comment.content}</p>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <button 
+                        onClick={() => handleLikeComment(comment.id)}
+                        className="hover:text-foreground transition-colors flex items-center gap-1"
+                      >
+                        <Heart className="w-3 h-3" /> {comment.likes}
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
               
               {/* Comment Input */}
               <div className="pt-2">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Add a comment..."
-                    className="flex-1 px-3 py-2 text-sm rounded-lg bg-secondary/50 border border-border/50 focus:outline-none focus:border-primary/50"
-                  />
-                  <button className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-                    Post
-                  </button>
-                </div>
+                {userWalletAddress ? (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Add a comment..."
+                      value={commentInput}
+                      onChange={(e) => setCommentInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handlePostComment();
+                        }
+                      }}
+                      disabled={isPosting}
+                      className="flex-1 px-3 py-2 text-sm rounded-lg bg-secondary/50 border border-border/50 focus:outline-none focus:border-primary/50 disabled:opacity-50"
+                    />
+                    <button 
+                      onClick={handlePostComment}
+                      disabled={isPosting || !commentInput.trim()}
+                      className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isPosting ? 'Posting...' : 'Post'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center text-sm text-muted-foreground p-4 bg-secondary/30 rounded-lg">
+                    Connect your wallet to comment
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -187,5 +283,6 @@ export const TradesFeed = () => {
     </div>
   );
 };
+
 
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, Wallet, ChevronDown, Sparkles, Power, X } from "lucide-react";
+import { Search, Wallet, ChevronDown, Sparkles, Power, X, User, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,13 @@ import axios from "axios";
 import { Token } from "@/features/create/types";
 import Image from "next/image";
 import Link from "next/link";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -30,14 +37,6 @@ export const Header = () => {
   const getShortAddress = (fullAddress: string) => {
     if (!fullAddress) return "";
     return `${fullAddress.slice(0, 8)}...${fullAddress.slice(-6)}`;
-  };
-
-  const handleWalletClick = () => {
-    if (connected) {
-      disconnect();
-    } else {
-      setWalletModalOpen(true);
-    }
   };
 
   // Search tokens
@@ -267,27 +266,61 @@ export const Header = () => {
 
       {/* Right - Wallet Connection */}
       <div className="flex items-center gap-3">
-        <Button
-          variant={connected ? "outline" : "wallet"}
-          size="default"
-          className="gap-2"
-          onClick={handleWalletClick}
-        >
-          <Wallet className="w-4 h-4 text-primary" />
-          {connected ? (
-            <>
-              <span className="hidden sm:inline font-mono">
-                {getShortAddress(address || "")}
-              </span>
-              <Power className="w-3 h-3 text-destructive" />
-            </>
-          ) : (
-            <>
-              <span className="hidden sm:inline">Connect Wallet</span>
-              <ChevronDown className="w-3 h-3 text-muted-foreground" />
-            </>
-          )}
-        </Button>
+        {connected ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="default"
+                className="gap-2"
+              >
+                <Wallet className="w-4 h-4 text-primary" />
+                <span className="hidden sm:inline font-mono">
+                  {getShortAddress(address || "")}
+                </span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem asChild>
+                <Link href={`/profile/${address}`} className="cursor-pointer">
+                  <User className="w-4 h-4 mr-2" />
+                  Profile
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a
+                  href={`https://preprod.cardanoscan.io/address/${address}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="cursor-pointer"
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  View Wallet
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={disconnect}
+                className="cursor-pointer text-destructive focus:text-destructive"
+              >
+                <Power className="w-4 h-4 mr-2" />
+                Disconnect
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Button
+            variant="wallet"
+            size="default"
+            className="gap-2"
+            onClick={() => setWalletModalOpen(true)}
+          >
+            <Wallet className="w-4 h-4 text-primary" />
+            <span className="hidden sm:inline">Connect Wallet</span>
+            <ChevronDown className="w-3 h-3 text-muted-foreground" />
+          </Button>
+        )}
       </div>
 
       {/* Wallet Modal */}

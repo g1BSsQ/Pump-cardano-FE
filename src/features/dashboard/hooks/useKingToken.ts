@@ -11,7 +11,7 @@ interface KingToken {
   marketCap: string;
   change24h: number;
   bondingProgress: number;
-  holders: number;
+  holders: number | null;
   volume24h: string;
   description?: string;
   headPort?: number;
@@ -46,7 +46,7 @@ export const useKingToken = () => {
           marketCap: '₳2.5M',
           change24h: 156.7,
           bondingProgress: 94,
-          holders: 12847,
+          holders: null,
           volume24h: '₳890K',
           description: 'The legendary meme that conquered Cardano.',
         });

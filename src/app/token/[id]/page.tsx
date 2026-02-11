@@ -1,6 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
+import React from 'react';
 import { useTokenDetail } from '@/features/token/hooks/useTokenDetail';
 import { TokenHeader } from '@/features/token/components/TokenHeader';
 import { SwapPanel } from '@/features/token/components/SwapPanel';
@@ -8,6 +9,9 @@ import { TradesFeed } from '@/features/token/components/TradesFeed';
 import { BondingCurveVisual } from '@/features/token/components/BondingCurveVisual';
 import { CustomChart } from '@/features/token/components/CustomChart'; // Import Chart thật
 import { Skeleton } from '@/components/ui/skeleton';
+import { useWallet } from '@meshsdk/react';
+
+import { formatDate } from '@/utils/date';
 
 // --- Helper format số liệu ---
 const formatADA = (val: string | number | undefined) => {
@@ -29,9 +33,21 @@ const formatCurrency = (val: string | number | undefined) => {
 export default function TokenDetailPage() {
   const params = useParams();
   const assetId = params.id as string;
+  const { connected, wallet } = useWallet();
 
   // Lấy dữ liệu thật từ Hook
   const { token, loading, error } = useTokenDetail(assetId);
+
+  // Get wallet address if connected
+  const [userWalletAddress, setUserWalletAddress] = React.useState<string | undefined>();
+
+  React.useEffect(() => {
+    if (connected && wallet) {
+      wallet.getChangeAddress().then(setUserWalletAddress).catch(() => setUserWalletAddress(undefined));
+    } else {
+      setUserWalletAddress(undefined);
+    }
+  }, [connected, wallet]);
 
   // 1. Loading State
   if (loading) {
@@ -104,7 +120,7 @@ export default function TokenDetailPage() {
           <BondingCurveVisual token={token} />
           
           {/* Lịch sử giao dịch */}
-          <TradesFeed /> 
+          <TradesFeed assetId={token.assetId} userWalletAddress={userWalletAddress} /> 
         </div>
 
         {/* Cột phải: Swap Panel & Info */}
@@ -132,7 +148,7 @@ export default function TokenDetailPage() {
                 <div className="flex justify-between">
                    <span>Created</span>
                    <span className="font-mono">
-                       {new Date(token.createdAt).toLocaleDateString()}
+                       {formatDate(token.createdAt)}
                    </span>
                 </div>
              </div>

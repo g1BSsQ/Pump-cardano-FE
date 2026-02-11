@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { formatDateTime, parseServerDate } from '@/utils/date';
 
 interface TokenTableProps {
   tokens: Token[];
@@ -140,8 +141,8 @@ export function TokenTable({ tokens }: TokenTableProps) {
                   </td>
 
                   {/* Age */}
-                  <td className="p-3 text-right text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(token.createdAt), { addSuffix: true })}
+                  <td className="p-3 text-right text-xs text-muted-foreground" title={formatDateTime(parseServerDate(token.createdAt))}>
+                    {formatDistanceToNow(parseServerDate(token.createdAt), { addSuffix: true })}
                   </td>
 
                   {/* Status */}

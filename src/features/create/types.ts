@@ -37,7 +37,23 @@ export interface TokenFormData {
 }
 
 // Status types for token creation process
-export type CreationStatus = "idle" | "uploading" | "minting" | "success" | "error";
+export type CreationStatus = 
+  | "idle" 
+  | "uploading" 
+  | "minting"
+  | "awaiting_confirmation" 
+  | "minted" 
+  | "depositing" 
+  | "success" 
+  | "error";
+
+// Token info after minting
+export interface MintedTokenInfo {
+  policyId: string;
+  tokenName: string;
+  assetNameHex: string;
+  txHash: string;
+}
 
 // Hook return type
 export interface UseCreateTokenReturn {
@@ -51,18 +67,21 @@ export interface UseCreateTokenReturn {
   status: CreationStatus;
   txHash: string;
   error: string;
+  mintedToken: MintedTokenInfo | null;
   actions: {
     createToken: (formData: TokenFormData) => Promise<void>;
     handleFileSelect: (selectedFile: File) => void;
     setFile: (file: File | undefined) => void;
   };
 }
+
 export interface Head {
   port: number;
   headId: string | null;
   status: 'Idle' | 'Initializing' | 'Open' | 'Closed' | 'FanoutPossible';
   lastUpdated: string;
 }
+
 export interface Token {
   assetId: string;
   policyId: string;

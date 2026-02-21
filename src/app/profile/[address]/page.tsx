@@ -1,7 +1,7 @@
 'use client';
 
 import { use, useState, useEffect } from 'react';
-import { useAddress } from '@meshsdk/react';
+import { useAddress, useLovelace } from '@meshsdk/react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -23,10 +23,25 @@ interface UserProfile {
   createdAt: string;
 }
 
+interface TokenHolding {
+  assetId: string;
+  amount: string;
+}
+
+interface TokenInfo {
+  assetId: string;
+  tokenName: string;
+  ticker: string;
+  logoUrl?: string;
+  currentPrice: string;
+  decimals: number;
+}
+
 export default function ProfilePage({ params }: { params: Promise<{ address: string }> }) {
   const resolvedParams = use(params);
   const address = resolvedParams.address;
   const connectedAddress = useAddress();
+  const lovelace = useLovelace();
   const router = useRouter();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -39,10 +54,15 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
   const [editedAvatar, setEditedAvatar] = useState<string | undefined>('');
   const [uploadingImage, setUploadingImage] = useState(false);
 
+  const [tokenHoldings, setTokenHoldings] = useState<TokenHolding[]>([]);
+  const [tokensInfo, setTokensInfo] = useState<Record<string, TokenInfo>>({});
+  const [loadingTokens, setLoadingTokens] = useState(false);
+
   const isOwnProfile = connectedAddress === address;
 
   useEffect(() => {
     fetchProfile();
+    fetchTokenHoldings();
   }, [address]);
 
   const fetchProfile = async () => {
@@ -57,6 +77,41 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
       console.error('Error fetching profile:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTokenHoldings = async () => {
+    try {
+      setLoadingTokens(true);
+      const res = await axios.get<TokenHolding[]>(`${API_URL}/users/${address}/tokens`);
+      setTokenHoldings(res.data);
+
+      // Fetch token info for each holding
+      const assetIds = res.data.map(h => h.assetId);
+      if (assetIds.length > 0) {
+        const tokenInfoPromises = assetIds.map(async (assetId) => {
+          try {
+            const tokenRes = await axios.get<TokenInfo>(`${API_URL}/tokens/${assetId}`);
+            return { assetId, info: tokenRes.data };
+          } catch (err) {
+            console.error(`Error fetching token ${assetId}:`, err);
+            return null;
+          }
+        });
+
+        const results = await Promise.all(tokenInfoPromises);
+        const infoMap: Record<string, TokenInfo> = {};
+        results.forEach((result) => {
+          if (result) {
+            infoMap[result.assetId] = result.info;
+          }
+        });
+        setTokensInfo(infoMap);
+      }
+    } catch (err) {
+      console.error('Error fetching token holdings:', err);
+    } finally {
+      setLoadingTokens(false);
     }
   };
 
@@ -118,6 +173,21 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
 
   const getShortAddress = (addr: string) => {
     return `${addr.slice(0, 8)}...${addr.slice(-6)}`;
+  };
+
+  const formatTokenAmount = (amount: string, decimals: number = 0) => {
+    const num = Number(amount) / Math.pow(10, decimals);
+    if (num >= 1_000_000) {
+      return `${(num / 1_000_000).toFixed(2)}M`;
+    } else if (num >= 1_000) {
+      return `${(num / 1_000).toFixed(2)}K`;
+    }
+    return num.toFixed(decimals > 0 ? 2 : 0);
+  };
+
+  const formatADA = (lovelaceAmount: number | undefined) => {
+    if (!lovelaceAmount) return '0.00';
+    return (lovelaceAmount / 1_000_000).toFixed(2);
   };
 
   if (loading) {
@@ -274,21 +344,80 @@ export default function ProfilePage({ params }: { params: Promise<{ address: str
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-sm font-bold text-primary">₳</span>
+            {/* ADA Balance - from wallet */}
+            {isOwnProfile && (
+              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-sm font-bold text-primary">₳</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold">Cardano</p>
+                    <p className="text-xs text-muted-foreground">ADA</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold">Cardano</p>
-                  <p className="text-xs text-muted-foreground">ADA</p>
+                <div className="text-right">
+                  <p className="font-mono font-bold">{formatADA(lovelace)} ADA</p>
+                  <p className="text-xs text-muted-foreground">From Wallet</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="font-mono font-bold">0.00 ADA</p>
-                <p className="text-xs text-muted-foreground">$0.00</p>
+            )}
+
+            {/* Token Holdings - from database */}
+            {loadingTokens ? (
+              <div className="space-y-3">
+                <Skeleton className="h-16 w-full rounded-lg" />
+                <Skeleton className="h-16 w-full rounded-lg" />
               </div>
-            </div>
+            ) : tokenHoldings.length > 0 ? (
+              tokenHoldings.map((holding) => {
+                const tokenInfo = tokensInfo[holding.assetId];
+                if (!tokenInfo) return null;
+
+                const amount = formatTokenAmount(holding.amount, tokenInfo.decimals);
+                const value = (Number(holding.amount) / Math.pow(10, tokenInfo.decimals)) * Number(tokenInfo.currentPrice);
+
+                return (
+                  <div
+                    key={holding.assetId}
+                    className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors cursor-pointer"
+                    onClick={() => router.push(`/token/${holding.assetId}`)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center shrink-0">
+                        {tokenInfo.logoUrl ? (
+                          <Image
+                            src={tokenInfo.logoUrl}
+                            alt={tokenInfo.tokenName}
+                            width={40}
+                            height={40}
+                            className="object-cover"
+                          />
+                        ) : (
+                          <span className="text-sm font-bold text-primary">
+                            {tokenInfo.ticker?.slice(0, 2).toUpperCase() || '??'}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-semibold">{tokenInfo.tokenName}</p>
+                        <p className="text-xs text-muted-foreground">{tokenInfo.ticker}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono font-bold">{amount} {tokenInfo.ticker}</p>
+                      <p className="text-xs text-muted-foreground">
+                        ≈ {value.toFixed(2)} ADA
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No token holdings found</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

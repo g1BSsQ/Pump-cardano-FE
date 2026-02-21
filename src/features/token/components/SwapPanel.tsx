@@ -99,15 +99,25 @@ export const SwapPanel = ({ token }: { token: Token }) => {
           adaAmount = parseFloat(estimated.replace(/,/g, ''));
       }
 
-      // Gửi cả Slippage lên backend (để backend check Hydra logic)
-      await axios.post(`${API_URL}/tokens/trade/simulate`, {
-        assetId: token.assetId,
-        type: mode === 'buy' ? 'BUY' : 'SELL',
-        adaAmount,
-        tokenAmount,
-        traderAddress: fakeTrader,
-        slippage: parseFloat(slippage) // Gửi slippage lên
-      });
+      // Nếu là Hydra token và đang mua -> Dùng API Buy Hydra (Deposit ADA UTxO)
+      if (token.headPort && mode === 'buy') {
+        console.log("Using Hydra L2 Buy flow");
+        await axios.post(`${API_URL}/tokens/buy/hydra`, {
+          assetId: token.assetId,
+          adaAmount,
+          buyerAddress: fakeTrader,
+        });
+      } else {
+        // Gửi cả Slippage lên backend (để backend check Hydra logic)
+        await axios.post(`${API_URL}/tokens/trade/simulate`, {
+          assetId: token.assetId,
+          type: mode === 'buy' ? 'BUY' : 'SELL',
+          adaAmount,
+          tokenAmount,
+          traderAddress: fakeTrader,
+          slippage: parseFloat(slippage) // Gửi slippage lên
+        });
+      }
 
       toast.success(`${mode === 'buy' ? 'Buy' : 'Sell'} successful!`);
       setAmount("");
@@ -137,6 +147,17 @@ export const SwapPanel = ({ token }: { token: Token }) => {
       </Tabs>
 
       <div className="p-4 space-y-5">
+        {token.headPort && (
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex items-start gap-3">
+            <Info className="w-4 h-4 text-blue-500 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-blue-500">Hydra L2 Enabled</p>
+              <p className="text-[10px] text-blue-500/80 leading-tight">
+                This token is trading on Hydra Head #{token.headPort}. Your purchase will be processed as a UTxO deposit to the L2 head.
+              </p>
+            </div>
+          </div>
+        )}
         
         {/* SETTINGS & BALANCE */}
         <div className="flex justify-between items-center text-xs text-muted-foreground">

@@ -20,10 +20,23 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
+interface UserProfile {
+  walletAddress: string;
+  username: string;
+  bio: string;
+  avatar?: string;
+  createdAt: string;
+}
+
+interface SearchResult {
+  type: 'token' | 'user';
+  data: Token | UserProfile;
+}
+
 export const Header = () => {
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Token[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -39,9 +52,9 @@ export const Header = () => {
     return `${fullAddress.slice(0, 8)}...${fullAddress.slice(-6)}`;
   };
 
-  // Search tokens
+  // Search tokens and users
   useEffect(() => {
-    const searchTokens = async () => {
+    const searchAll = async () => {
       if (!searchQuery.trim()) {
         setSearchResults([]);
         setShowDropdown(false);
@@ -50,13 +63,28 @@ export const Header = () => {
 
       setLoading(true);
       try {
-        const res = await axios.get<{ data: Token[] }>(`${API_URL}/tokens`, {
-          params: {
-            search: searchQuery,
-            limit: 5
-          }
-        });
-        setSearchResults(res.data.data);
+        // Search tokens and users in parallel
+        const [tokensRes, usersRes] = await Promise.all([
+          axios.get<{ data: Token[] }>(`${API_URL}/tokens`, {
+            params: {
+              search: searchQuery,
+              limit: 5
+            }
+          }),
+          axios.get<UserProfile[]>(`${API_URL}/users/search`, {
+            params: {
+              q: searchQuery,
+              limit: 5
+            }
+          })
+        ]);
+
+        const results: SearchResult[] = [
+          ...tokensRes.data.data.map(token => ({ type: 'token' as const, data: token })),
+          ...usersRes.data.map(user => ({ type: 'user' as const, data: user }))
+        ];
+
+        setSearchResults(results);
         setShowDropdown(true);
       } catch (err) {
         console.error('Search error:', err);
@@ -66,7 +94,7 @@ export const Header = () => {
       }
     };
 
-    const debounce = setTimeout(searchTokens, 300);
+    const debounce = setTimeout(searchAll, 300);
     return () => clearTimeout(debounce);
   }, [searchQuery]);
 
@@ -88,7 +116,12 @@ export const Header = () => {
       case 'Enter':
         e.preventDefault();
         if (highlightedIndex >= 0 && searchResults[highlightedIndex]) {
-          window.location.href = `/token/${searchResults[highlightedIndex].assetId}`;
+          const result = searchResults[highlightedIndex];
+          if (result.type === 'token') {
+            window.location.href = `/token/${(result.data as Token).assetId}`;
+          } else {
+            window.location.href = `/profile/${(result.data as UserProfile).walletAddress}`;
+          }
         }
         break;
       case 'Escape':
@@ -137,7 +170,7 @@ export const Header = () => {
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search token or address..."
+            placeholder="Search username or address..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => {
@@ -179,72 +212,123 @@ export const Header = () => {
               </div>
             ) : searchResults.length > 0 ? (
               <div className="py-2">
-                {searchResults.map((token, index) => {
-                  const isOnHead = !!token.headPort && token.head?.status === 'Open';
+                {searchResults.map((result, index) => {
                   const isHighlighted = index === highlightedIndex;
 
-                  return (
-                    <Link
-                      key={token.assetId}
-                      href={`/token/${token.assetId}`}
-                      className={cn(
-                        "flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors",
-                        isHighlighted && "bg-muted/50"
-                      )}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        setShowDropdown(false);
-                        setSearchQuery('');
-                      }}
-                    >
-                      {/* Token Logo */}
-                      <div className="relative w-10 h-10 rounded-full overflow-hidden border bg-muted shrink-0">
-                        {token.logoUrl ? (
-                          <Image
-                            src={`https://ipfs.io/ipfs/${token.logoUrl}`}
-                            alt={token.tokenName}
-                            fill
-                            className="object-cover"
-                            sizes="40px"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-xs font-bold text-muted-foreground">
-                            {token.ticker?.slice(0, 2) || '?'}
-                          </div>
+                  if (result.type === 'token') {
+                    const token = result.data as Token;
+                    const isOnHead = !!token.headPort && token.head?.status === 'Open';
+
+                    return (
+                      <Link
+                        key={`token-${token.assetId}`}
+                        href={`/token/${token.assetId}`}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors",
+                          isHighlighted && "bg-muted/50"
                         )}
-                      </div>
-
-                      {/* Token Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold truncate flex items-center gap-2">
-                          {token.tokenName}
-                          {isOnHead && (
-                            <span className="text-xs text-green-500">⚡</span>
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground font-mono">
-                          ${token.ticker}
-                        </div>
-                      </div>
-
-                      {/* Price Info */}
-                      {token.currentPrice && parseFloat(token.currentPrice) > 0 && (
-                        <div className="text-right">
-                          <div className="text-sm font-mono">
-                            ₳{parseFloat(token.currentPrice).toFixed(4)}
-                          </div>
-                          {token.priceChange24h !== undefined && token.priceChange24h !== 0 && (
-                            <div className={cn(
-                              "text-xs font-semibold",
-                              token.priceChange24h >= 0 ? "text-green-500" : "text-red-500"
-                            )}>
-                              {token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h.toFixed(2)}%
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setShowDropdown(false);
+                          setSearchQuery('');
+                        }}
+                      >
+                        {/* Token Logo */}
+                        <div className="relative w-10 h-10 rounded-full overflow-hidden border bg-muted shrink-0">
+                          {token.logoUrl ? (
+                            <Image
+                              src={`https://ipfs.io/ipfs/${token.logoUrl}`}
+                              alt={token.tokenName}
+                              fill
+                              className="object-cover"
+                              sizes="40px"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-xs font-bold text-muted-foreground">
+                              {token.ticker?.slice(0, 2) || '?'}
                             </div>
                           )}
                         </div>
-                      )}
-                    </Link>
-                  );
+
+                        {/* Token Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold truncate flex items-center gap-2">
+                            {token.tokenName}
+                            {isOnHead && (
+                              <span className="text-xs text-green-500">⚡</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground font-mono">
+                            ${token.ticker}
+                          </div>
+                        </div>
+
+                        {/* Price Info */}
+                        {token.currentPrice && parseFloat(token.currentPrice) > 0 && (
+                          <div className="text-right">
+                            <div className="text-sm font-mono">
+                              ₳{parseFloat(token.currentPrice).toFixed(4)}
+                            </div>
+                            {token.priceChange24h !== undefined && token.priceChange24h !== 0 && (
+                              <div className={cn(
+                                "text-xs font-semibold",
+                                token.priceChange24h >= 0 ? "text-green-500" : "text-red-500"
+                              )}>
+                                {token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h.toFixed(2)}%
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </Link>
+                    );
+                  } else {
+                    // User result
+                    const user = result.data as UserProfile;
+
+                    return (
+                      <Link
+                        key={`user-${user.walletAddress}`}
+                        href={`/profile/${user.walletAddress}`}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors",
+                          isHighlighted && "bg-muted/50"
+                        )}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setShowDropdown(false);
+                          setSearchQuery('');
+                        }}
+                      >
+                        {/* User Avatar */}
+                        <div className="relative w-10 h-10 rounded-full overflow-hidden border bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center shrink-0">
+                          {user.avatar ? (
+                            <Image
+                              src={user.avatar}
+                              alt={user.username}
+                              fill
+                              className="object-cover"
+                              sizes="40px"
+                            />
+                          ) : (
+                            <span className="text-sm font-bold text-primary">
+                              {user.username.slice(0, 2).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* User Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold truncate flex items-center gap-2">
+                            {user.username}
+                            <User className="w-3 h-3 text-muted-foreground" />
+                          </div>
+                          <div className="text-xs text-muted-foreground font-mono truncate">
+                            {user.walletAddress.slice(0, 12)}...{user.walletAddress.slice(-8)}
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  }
                 })}
               </div>
             ) : (
@@ -253,10 +337,10 @@ export const Header = () => {
                   <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 </div>
                 <p className="text-sm font-medium text-foreground mb-1">
-                  No tokens found
+                  No results found
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Try searching with a different name or ticker
+                  Try searching with a different name, ticker, or address
                 </p>
               </div>
             )}

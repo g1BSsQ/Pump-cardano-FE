@@ -1,14 +1,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { 
-  LayoutGrid, 
-  PlusCircle, 
-  Wallet, 
-  FileText, 
+import {
+  LayoutGrid,
+  PlusCircle,
+  FileText,
   ChevronLeft,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  ArrowRightLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 const navItems = [
   { icon: LayoutGrid, label: "Board", path: "/" },
   { icon: PlusCircle, label: "Create Coin", path: "/create" },
-  { icon: Wallet, label: "Portfolio", path: "/portfolio" },
+  { icon: ArrowRightLeft, label: "Hydra Bridge", path: "/bridge" },
   { icon: FileText, label: "Docs", path: "/docs" },
 ];
 
@@ -63,8 +63,8 @@ export const Sidebar = () => {
               href={item.path}
               className={cn(
                 "flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group relative overflow-hidden",
-                isActive 
-                  ? "bg-primary/10 text-primary" 
+                isActive
+                  ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary"
               )}
             >
@@ -130,5 +130,4 @@ export const Sidebar = () => {
     </motion.aside>
   );
 };
-
 

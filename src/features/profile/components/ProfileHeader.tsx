@@ -20,6 +20,7 @@ interface Props {
   setEditedBio: (v: string) => void;
   editedAvatar: string | undefined;
   uploadingImage: boolean;
+  createdTokensCount: number;
   onSave: () => void;
   onCancel: () => void;
   onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -30,7 +31,7 @@ const getShortAddress = (addr: string) => `${addr.slice(0, 8)}...${addr.slice(-6
 export const ProfileHeader = ({
   profile, isOwnProfile, editing, setEditing, saving,
   editedUsername, setEditedUsername, editedBio, setEditedBio,
-  editedAvatar, uploadingImage, onSave, onCancel, onImageUpload,
+  editedAvatar, uploadingImage, createdTokensCount, onSave, onCancel, onImageUpload,
 }: Props) => {
   const avatarSrc = editing ? editedAvatar : profile.avatar;
 
@@ -100,12 +101,18 @@ export const ProfileHeader = ({
                 </div>
                 {profile.bio && <p className="text-muted-foreground whitespace-pre-wrap">{profile.bio}</p>}
                 <div className="flex gap-4 pt-4 border-t">
-                  {[['0', 'Followers'], ['0', 'Following'], ['0', 'Created coins']].map(([val, label]) => (
-                    <div key={label}>
-                      <p className="text-2xl font-bold">{val}</p>
-                      <p className="text-sm text-muted-foreground">{label}</p>
-                    </div>
-                  ))}
+                  <div>
+                    <p className="text-2xl font-bold">0</p>
+                    <p className="text-sm text-muted-foreground">Followers</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">0</p>
+                    <p className="text-sm text-muted-foreground">Following</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{createdTokensCount}</p>
+                    <p className="text-sm text-muted-foreground">Created coins</p>
+                  </div>
                 </div>
               </>
             )}

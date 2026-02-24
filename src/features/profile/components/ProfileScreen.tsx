@@ -23,6 +23,7 @@ export const ProfileScreen = ({ address }: Props) => {
     editedBio, setEditedBio,
     editedAvatar, uploadingImage,
     tokenHoldings, tokensInfo, loadingTokens,
+    createdTokensCount,
     handleSave, handleCancel, handleImageUpload,
   } = useProfile(address);
 
@@ -57,6 +58,7 @@ export const ProfileScreen = ({ address }: Props) => {
         setEditedBio={setEditedBio}
         editedAvatar={editedAvatar}
         uploadingImage={uploadingImage}
+        createdTokensCount={createdTokensCount}
         onSave={handleSave}
         onCancel={handleCancel}
         onImageUpload={handleImageUpload}

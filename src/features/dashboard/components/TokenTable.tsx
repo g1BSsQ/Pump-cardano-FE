@@ -49,6 +49,7 @@ export function TokenTable({ tokens }: TokenTableProps) {
               <th className="text-right p-3 font-semibold">Price</th>
               <th className="text-right p-3 font-semibold">24H VOL</th>
               <th className="text-right p-3 font-semibold">24H</th>
+              <th className="text-right p-3 font-semibold">Holders</th>
               <th className="text-right p-3 font-semibold">Age</th>
               <th className="text-center p-3 font-semibold">Status</th>
             </tr>
@@ -138,6 +139,11 @@ export function TokenTable({ tokens }: TokenTableProps) {
                         {isPositive ? '+' : ''}{priceChange.toFixed(2)}%
                       </div>
                     )}
+                  </td>
+
+                  {/* Holders */}
+                  <td className="p-3 text-right font-mono text-sm">
+                    {token.holders ? formatNumber(token.holders) : '-'}
                   </td>
 
                   {/* Age */}

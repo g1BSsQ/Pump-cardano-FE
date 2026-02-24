@@ -18,10 +18,12 @@ export const useProfile = (address: string) => {
   const [tokenHoldings, setTokenHoldings] = useState<TokenHolding[]>([]);
   const [tokensInfo, setTokensInfo] = useState<Record<string, TokenInfo>>({});
   const [loadingTokens, setLoadingTokens] = useState(false);
+  const [createdTokensCount, setCreatedTokensCount] = useState(0);
 
   useEffect(() => {
     fetchProfile();
     fetchTokenHoldings();
+    fetchCreatedTokensCount();
   }, [address]);
 
   const fetchProfile = async () => {
@@ -65,6 +67,17 @@ export const useProfile = (address: string) => {
       console.error('Error fetching token holdings:', err);
     } finally {
       setLoadingTokens(false);
+    }
+  };
+
+  const fetchCreatedTokensCount = async () => {
+    try {
+      const res = await axios.get<{ address: string; createdTokens: number }>(
+        `${API_URL}/users/${address}/created-tokens`
+      );
+      setCreatedTokensCount(res.data.createdTokens);
+    } catch (err) {
+      console.error('Error fetching created tokens count:', err);
     }
   };
 
@@ -121,6 +134,7 @@ export const useProfile = (address: string) => {
     tokenHoldings,
     tokensInfo,
     loadingTokens,
+    createdTokensCount,
     handleSave,
     handleCancel,
     handleImageUpload,

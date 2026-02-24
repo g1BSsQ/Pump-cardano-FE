@@ -106,6 +106,7 @@ export interface Token {
   marketCap?: string;         // Vốn hóa
   volume24h?: string;         // Volume 24h
   priceChange24h?: number;    // Biến động giá %
+  holders?: number;           // Số lượng holders
 }
 
 export interface TokensResponse {

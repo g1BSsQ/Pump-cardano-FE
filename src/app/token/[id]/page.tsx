@@ -1,197 +1,161 @@
-"use client";
+'use client';
 
-import { useParams } from "next/navigation";
-import { motion } from "framer-motion";
-import { ArrowLeft, Share2, Heart, MessageCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { TokenHeader } from "@/components/token/TokenHeader";
-import { BondingCurveVisual } from "@/components/token/BondingCurveVisual";
-import { SwapPanel } from "@/components/token/SwapPanel";
-import { TradesFeed } from "@/components/token/TradesFeed";
-import { TradingViewChart } from "@/components/token/TradingViewChart";
+import { useParams } from 'next/navigation';
+import React from 'react';
+import { useTokenDetail } from '@/features/token/hooks/useTokenDetail';
+import { TokenHeader } from '@/features/token/components/TokenHeader';
+import { SwapPanel } from '@/features/token/components/SwapPanel';
+import { TradesFeed } from '@/features/token/components/TradesFeed';
+import { BondingCurveVisual } from '@/features/token/components/BondingCurveVisual';
+import { CustomChart } from '@/features/token/components/CustomChart'; // Import Chart thật
+import { Skeleton } from '@/components/ui/skeleton';
+import { useWallet } from '@meshsdk/react';
 
-const mockTokenData = {
-  id: "1",
-  name: "SNEK",
-  ticker: "SNEK",
-  description: "The ultimate meme coin on Cardano. Join the snake revolution!",
-  image: "https://images.unsplash.com/photo-1531386151447-fd76ad50012f?w=400&h=400&fit=crop",
-  creator: "0x1234...5678",
-  createdAt: "2024-01-15",
-  marketCap: "₳2,450,000",
-  price: "₳0.00049",
-  change24h: 15.7,
-  volume24h: "₳125,000",
-  holders: "1,247",
-  bondingProgress: 94,
-  
-  // FIX: Convert to string to match BondingCurveVisual interface
-  raised: "₳94,000", 
-  target: "₳100,000",
+import { formatDate } from '@/utils/date';
 
-  contractAddress: "addr1qxqs59lphg8g6qndelq8xwqn60ag3aeyfcp33c2kdp46a429mgm8tq9rjmf7z9d0v8n8ddc7v7gwq6y5dss3ts2k8sqq6s9xh",
-  socialLinks: {
-    twitter: "https://twitter.com/snekcoin",
-    telegram: "https://t.me/snekcoin",
-    discord: "https://discord.gg/snekcoin",
-  },
+// --- Helper format số liệu ---
+const formatADA = (val: string | number | undefined) => {
+  if (!val) return '0';
+  const num = Number(val);
+  // Hiển thị tối đa 6 số lẻ cho giá nhỏ
+  return num.toLocaleString('en-US', { maximumFractionDigits: 6 });
 };
 
-const TokenDetail = () => {
-  const _params = useParams();
-  // const tokenId = params.id as string; // Not used currently
+const formatCurrency = (val: string | number | undefined) => {
+  if (!val) return '0';
+  const num = Number(val);
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(2)}K`;
+  return num.toLocaleString();
+};
+// -----------------------------
 
-  // In a real app, fetch token data based on tokenId
-  const token = mockTokenData;
+export default function TokenDetailPage() {
+  const params = useParams();
+  const assetId = params.id as string;
+  const { connected, wallet } = useWallet();
 
+  // Lấy dữ liệu thật từ Hook
+  const { token, loading, error } = useTokenDetail(assetId);
+
+  // Get wallet address if connected
+  const [userWalletAddress, setUserWalletAddress] = React.useState<string | undefined>();
+
+  React.useEffect(() => {
+    if (connected && wallet) {
+      wallet.getChangeAddress().then(setUserWalletAddress).catch(() => setUserWalletAddress(undefined));
+    } else {
+      setUserWalletAddress(undefined);
+    }
+  }, [connected, wallet]);
+
+  // 1. Loading State
+  if (loading) {
+    return (
+      <div className="container mx-auto p-4 space-y-6 pt-20">
+        <Skeleton className="h-32 w-full rounded-xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Skeleton className="col-span-2 h-[400px] rounded-xl" />
+          <Skeleton className="h-[400px] rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Error State
+  if (error || !token) {
+    return (
+      <div className="container mx-auto p-20 text-center">
+        <h2 className="text-2xl font-bold text-red-500">Error Loading Token</h2>
+        <p className="text-muted-foreground">{error || 'Token not found'}</p>
+      </div>
+    );
+  }
+
+  // 3. Main Render
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      {/* Back Button */}
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-      >
-        <Link href="/">
-          <Button variant="ghost" className="mb-4">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </Button>
-        </Link>
-      </motion.div>
+    <div className="container mx-auto p-4 space-y-6 pb-20 pt-6">
+      
+      {/* Header hiển thị thông tin sản phẩm (Tên, Logo, Social) */}
+      <TokenHeader token={token} />
 
-      {/* Token Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
-        <TokenHeader token={token} />
-      </motion.div>
+      {/* --- THANH THÔNG TIN TÀI CHÍNH (PRICE, CAP, VOL) --- */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-secondary/20 rounded-lg border border-border/50">
+          <div>
+              <p className="text-xs text-muted-foreground">Price</p>
+              <p className="font-mono font-bold text-lg text-green-400">
+                  {formatADA(token.currentPrice)} ADA
+              </p>
+          </div>
+          <div>
+              <p className="text-xs text-muted-foreground">Market Cap</p>
+              <p className="font-mono font-bold text-lg">
+                  {formatCurrency(token.marketCap)} ADA
+              </p>
+          </div>
+          <div>
+              <p className="text-xs text-muted-foreground">24h Volume</p>
+              <p className="font-mono font-bold text-lg">
+                  {formatCurrency(token.volume24h)} ADA
+              </p>
+          </div>
+          <div>
+              <p className="text-xs text-muted-foreground">24h Change</p>
+              <p className={`font-mono font-bold text-lg ${(token.priceChange24h || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {(token.priceChange24h || 0) > 0 ? '+' : ''}
+                  {(token.priceChange24h || 0).toFixed(2)}%
+              </p>
+          </div>
+      </div>
+      {/* ---------------------------------------------------- */}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
+        {/* Cột trái: Chart & Bonding Curve */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Chart */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass-panel p-6"
-          >
-            <TradingViewChart />
-          </motion.div>
-
-          {/* Bonding Curve */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="glass-panel p-6"
-          >
-            <h3 className="font-semibold mb-4">Bonding Curve</h3>
-            <BondingCurveVisual 
-              progress={token.bondingProgress} 
-              raised={token.raised}
-              target={token.target}
-            />
-          </motion.div>
-
-          {/* Trades Feed */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass-panel p-6"
-          >
-            <h3 className="font-semibold mb-4">Recent Trades</h3>
-            <TradesFeed />
-          </motion.div>
+          
+          {/* Chart Nến thật (Lightweight Charts) */}
+          <CustomChart />
+          
+          {/* Thanh tiến trình Bonding Curve */}
+          <BondingCurveVisual token={token} />
+          
+          {/* Lịch sử giao dịch */}
+          <TradesFeed assetId={token.assetId} userWalletAddress={userWalletAddress} /> 
         </div>
 
-        {/* Sidebar */}
+        {/* Cột phải: Swap Panel & Info */}
         <div className="space-y-6">
-          {/* Swap Panel */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
-            <SwapPanel token={token} />
-          </motion.div>
+          
+          {/* Swap Form */}
+          <SwapPanel token={token} />
+          
+          {/* Thông tin Creator */}
+          <div className="p-4 rounded-xl border bg-card/50 text-card-foreground shadow-sm">
+             <h3 className="font-semibold mb-2 text-sm">Token Info</h3>
+             <div className="space-y-2 text-xs text-muted-foreground">
+                <div className="flex justify-between">
+                   <span>Creator</span>
+                   <span className="font-mono text-primary cursor-pointer hover:underline" title={token.ownerAddress}>
+                      {token.ownerAddress.slice(0, 10)}...{token.ownerAddress.slice(-4)}
+                   </span>
+                </div>
+                <div className="flex justify-between">
+                   <span>Asset ID</span>
+                   <span className="font-mono break-all text-right ml-4" title={token.assetId}>
+                       {token.assetId.slice(0, 10)}...{token.assetId.slice(-6)}
+                   </span>
+                </div>
+                <div className="flex justify-between">
+                   <span>Created</span>
+                   <span className="font-mono">
+                       {formatDate(token.createdAt)}
+                   </span>
+                </div>
+             </div>
+          </div>
 
-          {/* Token Info */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="glass-panel p-6"
-          >
-            <h3 className="font-semibold mb-4">Token Info</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Market Cap</span>
-                <span className="font-mono">{token.marketCap}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">24h Volume</span>
-                <span className="font-mono">{token.volume24h}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Holders</span>
-                <span className="font-mono">{token.holders}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Created</span>
-                <span className="font-mono text-sm">{token.createdAt}</span>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Social Links */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="glass-panel p-6"
-          >
-            <h3 className="font-semibold mb-4">Community</h3>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" asChild>
-                <a href={token.socialLinks.twitter} target="_blank" rel="noopener noreferrer">
-                  <Share2 className="w-4 h-4 mr-2" />
-                  Twitter
-                </a>
-              </Button>
-              <Button variant="outline" size="sm" asChild>
-                <a href={token.socialLinks.telegram} target="_blank" rel="noopener noreferrer">
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Telegram
-                </a>
-              </Button>
-            </div>
-          </motion.div>
-
-          {/* Actions */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-            className="flex gap-2"
-          >
-            <Button variant="outline" size="sm" className="flex-1">
-              <Heart className="w-4 h-4 mr-2" />
-              Favorite
-            </Button>
-            <Button variant="outline" size="sm" className="flex-1">
-              <Share2 className="w-4 h-4 mr-2" />
-              Share
-            </Button>
-          </motion.div>
         </div>
       </div>
     </div>
   );
-};
-
-export default TokenDetail;
+}

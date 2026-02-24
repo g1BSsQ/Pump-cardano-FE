@@ -5,6 +5,16 @@
 @import "tailwindcss";
 @plugin "tailwindcss-animate";
 
+/* remove default arrows/controls on number inputs for cleaner UI */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
 /* ========================================
    1. THEME CONFIGURATION
    ======================================== */

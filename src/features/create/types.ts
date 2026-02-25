@@ -95,18 +95,17 @@ export interface Token {
   logoUrl?: string;
   description?: string;
   socialLinks?: Record<string, string>;
-  
-  // Trường mới: Token đang nằm ở Head nào?
-  headPort?: number;
-  head?: Head;
-  
   createdAt: string;
   
-  currentPrice?: string;      // Giá hiện tại
-  marketCap?: string;         // Vốn hóa
-  volume24h?: string;         // Volume 24h
-  priceChange24h?: number;    // Biến động giá %
-  holders?: number;           // Số lượng holders
+  // THÊM OBJECT POOL VÀO ĐÂY
+  pool?: {
+    currentPrice: string;
+    marketCap: string;
+    volume24h: string;
+    priceChange24h: number;
+    headPort: number | null;
+    status: string;
+  };
 }
 
 export interface TokensResponse {

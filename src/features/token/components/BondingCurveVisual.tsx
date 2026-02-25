@@ -6,35 +6,47 @@ interface Props {
 }
 
 export function BondingCurveVisual({ token }: Props) {
-  // Giả sử logic Pump.fun: Max Supply 1 Tỷ. 
-  // Bonding Curve hoàn thành khi bán được khoảng 80% (tùy logic bạn set).
-  // Ở đây hiển thị đơn giản là % Supply đang lưu hành.
+  // 1. Cấu hình hằng số (Khớp với Smart Contract)
   const MAX_SUPPLY = 1_000_000_000; 
-  const currentSupply = Number(token.totalSupply);
   
+  // 2. LẤY DỮ LIỆU THỰC TẾ TỪ POOL (Thay vì token.totalSupply)
+  const currentSupply = Number(token.pool?.currentSupply || 0);
+  const decimals = token.decimals || 0;
+  
+  // 3. Tính toán tỷ lệ phần trăm
   const percentage = Math.min((currentSupply / MAX_SUPPLY) * 100, 100);
 
-  // Status text
-  const isCompleted = percentage >= 80; // Ví dụ mốc 80% là tốt nghiệp
+  // 4. Trạng thái tốt nghiệp (Nếu pool chuyển sang status GRADUATED)
+  const isCompleted = token.pool?.status === 'GRADUATED' || percentage >= 100;
 
   return (
     <div className="glass-panel p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-lg">Bonding Curve Progress</h3>
-        <span className="text-primary font-mono font-bold">{percentage.toFixed(2)}%</span>
+        <div className="space-y-1">
+            <h3 className="font-semibold text-lg flex items-center gap-2">
+                Bonding Curve Progress
+                {isCompleted && <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded-full">Completed</span>}
+            </h3>
+            <p className="text-xs text-muted-foreground">
+                {isCompleted 
+                  ? "Token has graduated to DEX liquidity!" 
+                  : `Collect 100% to migrate liquidity to Hydra Head.`}
+            </p>
+        </div>
+        <span className="text-primary font-mono font-bold text-xl">{percentage.toFixed(2)}%</span>
       </div>
 
-      <Progress value={percentage} className="h-4 bg-secondary" />
+      <div className="relative">
+          <Progress value={percentage} className="h-4 bg-secondary shadow-inner" />
+          {/* Mark mốc 80% nếu bạn muốn hiển thị điểm mồi */}
+          {!isCompleted && (
+              <div className="absolute top-0 left-[80%] w-0.5 h-4 bg-white/20" title="80% Milestone" />
+          )}
+      </div>
 
-      <p className="text-sm text-muted-foreground">
-        {isCompleted 
-          ? "🎉 Bonding curve completed! Trading is now live on Hydra." 
-          : "When the bonding curve reaches 100%, liquidity will be deposited into Hydra Head."
-        }
-      </p>
-
-      <div className="text-xs text-muted-foreground font-mono mt-2">
-         {currentSupply.toLocaleString()} / {MAX_SUPPLY.toLocaleString()} {token.ticker}
+      <div className="flex justify-between text-[10px] text-muted-foreground font-mono uppercase tracking-widest">
+         <span>Available: {(MAX_SUPPLY - currentSupply).toLocaleString()} {token.ticker}</span>
+         <span>Sold: {currentSupply.toLocaleString()} / {MAX_SUPPLY.toLocaleString()}</span>
       </div>
     </div>
   );

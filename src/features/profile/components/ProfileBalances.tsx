@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { TokenHolding, TokenInfo } from '../types';
@@ -40,6 +41,19 @@ export const ProfileBalances = ({ isOwnProfile, lovelace, tokenHoldings, tokensI
 
   // Mock total P&L for now
   const totalPnl = 45.8;
+
+  // generate stable random data for each holding in an effect to avoid impure calls during render
+  const randomDataRef = useRef<Record<string, { pnl: number; bondingProgress: number }>>({});
+  useEffect(() => {
+    const m: Record<string, { pnl: number; bondingProgress: number }> = {};
+    tokenHoldings.forEach(h => {
+      m[h.assetId] = {
+        pnl: Math.random() * 200 - 100,
+        bondingProgress: Math.random() * 100,
+      };
+    });
+    randomDataRef.current = m;
+  }, [tokenHoldings]);
 
   return (
     <div className="space-y-6">
@@ -98,9 +112,9 @@ export const ProfileBalances = ({ isOwnProfile, lovelace, tokenHoldings, tokensI
 
                 const amount = formatTokenAmount(holding.amount, tokenInfo.decimals);
                 const value = (Number(holding.amount) / Math.pow(10, tokenInfo.decimals)) * Number(tokenInfo.currentPrice);
-                // Mock P&L and bonding progress
-                const pnl = Math.random() * 200 - 100;
-                const bondingProgress = Math.random() * 100;
+                // Mock P&L and bonding progress (stable values)
+                const pnl = 0;
+                const bondingProgress = 0;
 
                 return (
                   <div

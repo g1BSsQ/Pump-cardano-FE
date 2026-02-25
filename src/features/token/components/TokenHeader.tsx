@@ -9,7 +9,7 @@ interface TokenHeaderProps {
 
 export function TokenHeader({ token }: TokenHeaderProps) {
   // Logic check Head
-  const isOnHead = !!token.headPort && token.head?.status === 'Open';
+  const isOnHead = !!token.pool?.headPort;
 
   return (
     <div className="glass-panel p-6 relative overflow-hidden">
@@ -43,7 +43,7 @@ export function TokenHeader({ token }: TokenHeaderProps) {
             </Badge>
             {isOnHead && (
                <Badge className="bg-green-500/20 text-green-400 hover:bg-green-500/30">
-                 ⚡ Hydra Head #{token.headPort}
+                 ⚡ Hydra Head #{token.pool?.headPort}
                </Badge>
             )}
           </div>

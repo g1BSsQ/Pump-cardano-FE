@@ -24,14 +24,11 @@ export const useComments = (assetId: string, limit: number = 50) => {
     if (!assetId) return;
     
     try {
-      // Don't set loading to true on refetch to avoid flickering
-      // Only set it on initial load if comments are empty
-      if (comments.length === 0) {
-        setLoading(true);
-      }
+      // Always show loading during fetch
+      setLoading(true);
       setError('');
       
-      const res = await axios.get<Comment[]>(`${API_URL}/tokens/${assetId}/comments`, {
+      const res = await axios.get<Comment[]>(`${API_URL}/pools/${assetId}/comments`, {
         params: { limit }
       });
       
@@ -54,7 +51,7 @@ export const useComments = (assetId: string, limit: number = 50) => {
 
   const postComment = async (userWalletAddress: string, content: string) => {
     try {
-      const res = await axios.post<Comment>(`${API_URL}/tokens/${assetId}/comments`, {
+      const res = await axios.post<Comment>(`${API_URL}/pools/${assetId}/comments`, {
         userWalletAddress,
         content
       });
@@ -70,7 +67,7 @@ export const useComments = (assetId: string, limit: number = 50) => {
 
   const likeComment = async (commentId: string) => {
     try {
-      await axios.post(`${API_URL}/tokens/comments/${commentId}/like`);
+      await axios.post(`${API_URL}/pools/comments/${commentId}/like`);
       
       // Update local state
       setComments(prev => prev.map(c => 

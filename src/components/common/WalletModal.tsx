@@ -2,10 +2,11 @@
 
 import { motion } from "framer-motion";
 import { Wallet, ExternalLink, Power } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useWallet, useWalletList, useAddress, useLovelace } from "@meshsdk/react";
-import Image from "next/image";
+
 
 interface WalletModalProps {
   isOpen: boolean;
@@ -105,7 +106,7 @@ export const WalletModal = ({ isOpen, onClose }: WalletModalProps) => {
                     className="w-full p-4 rounded-lg glass-panel hover:card-hover transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="flex items-center gap-3">
-                      <img
+                      <Image
                         src={wallet.icon}
                         alt={wallet.name}
                         width={32}

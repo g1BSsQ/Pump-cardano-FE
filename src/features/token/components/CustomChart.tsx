@@ -5,7 +5,6 @@ import {
     ColorType, 
     IChartApi, 
     ISeriesApi, 
-    CandlestickData, 
     CandlestickSeries, 
     HistogramSeries,
     Time
@@ -14,15 +13,22 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useParams } from 'next/navigation';
 import { formatDateTime } from '@/utils/date';
+import { useTokenDetail } from '../hooks/useTokenDetail';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
-// Format giá hiển thị (đến 9 số lẻ)
+// Cấu hình các khung giờ (giây)
+const RESOLUTIONS = {
+    '1m': 60,
+    '5m': 300,
+    '15m': 900,
+    '1h': 3600,
+    '1d': 86400,
+};
+type ResolutionKey = keyof typeof RESOLUTIONS;
+
 const formatPrice = (price: number) => {
-    return price.toLocaleString('en-US', { 
-        minimumFractionDigits: 2, 
-        maximumFractionDigits: 9 
-    });
+    return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 9 });
 };
 
 export const CustomChart = () => {
@@ -30,243 +36,248 @@ export const CustomChart = () => {
     const chartRef = useRef<IChartApi | null>(null);
     const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
     const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+    const lastCandleRef = useRef<any>(null);
     
     const params = useParams();
     const assetId = params.id as string;
     
-    // State dữ liệu
-    const [chartData, setChartData] = useState<(CandlestickData & { volume?: number })[]>([]);
+    // Lấy thông tin Token để hiển thị tên Cặp giao dịch
+    const { token } = useTokenDetail(assetId);
     
-    // State Tooltip
-    const [tooltip, setTooltip] = useState<{
-        visible: boolean;
-        o: number; h: number; l: number; c: number; v: number;
-        time: string;
-        color: string;
-    } | null>(null);
+    // State quản lý Khung giờ
+    const [resolution, setResolution] = useState<ResolutionKey>('15m');
+    const intervalSeconds = RESOLUTIONS[resolution];
+    
+    const [tooltip, setTooltip] = useState<any>(null);
 
-    // 1. Fetch Data
+    // ========================================================
+    // 1. FETCH DATA & DỰNG LỊCH SỬ (Tự động theo resolution)
+    // ========================================================
     const fetchChartData = useCallback(async () => {
         if (!assetId) return;
         try {
-            const res = await axios.get(`${API_URL}/tokens/${assetId}/chart?resolution=15m`);
-            if (res.data && Array.isArray(res.data)) {
-                // Sort dữ liệu theo thời gian
-                const sortedData = res.data.sort((a: any, b: any) => a.time - b.time);
-                
-                // Cập nhật dữ liệu nếu chart đã init
+            const res = await axios.get(`${API_URL}/pools/${assetId}/chart?resolution=${resolution}`);
+            
+            // Xóa chart nếu không có dữ liệu
+            if (!res.data || res.data.length === 0) {
                 if (candleSeriesRef.current && volumeSeriesRef.current) {
-                    candleSeriesRef.current.setData(sortedData);
-                    
-                    // Tạo dữ liệu volume
-                    const volumeData = sortedData.map((d: any) => ({
-                        time: d.time,
-                        value: d.volume,
-                        color: d.close >= d.open ? '#22c55e80' : '#ef444480', // Xanh/Đỏ mờ
-                    }));
-                    volumeSeriesRef.current.setData(volumeData);
-                } else {
-                    // Nếu chưa init thì lưu vào state
-                    setChartData(sortedData);
+                    candleSeriesRef.current.setData([]);
+                    volumeSeriesRef.current.setData([]);
                 }
+                return;
+            }
+
+            const rawData = res.data.sort((a: any, b: any) => a.time - b.time);
+            const bucketedMap = new Map<number, any>();
+            
+            // Gom nến vào khung giờ
+            rawData.forEach((candle: any) => {
+                const bucketTime = Math.floor(candle.time / intervalSeconds) * intervalSeconds;
+                if (!bucketedMap.has(bucketTime)) {
+                    bucketedMap.set(bucketTime, { ...candle, time: bucketTime });
+                } else {
+                    const existing = bucketedMap.get(bucketTime)!;
+                    existing.high = Math.max(existing.high, candle.high);
+                    existing.low = Math.min(existing.low, candle.low);
+                    existing.close = candle.close;
+                    existing.volume = (existing.volume || 0) + (candle.volume || 0);
+                }
+            });
+            
+            const sortedBuckets = Array.from(bucketedMap.values()).sort((a, b) => a.time - b.time);
+            const filledData: any[] = [];
+            let last = sortedBuckets[0];
+            filledData.push({ ...last });
+
+            // Bơm nến & nối liền gap
+            for (let i = 1; i < sortedBuckets.length; i++) {
+                const curr = sortedBuckets[i];
+                let nextTime = last.time + intervalSeconds;
+                
+                while (nextTime < curr.time) {
+                    const fake = { time: nextTime, open: last.close, high: last.close, low: last.close, close: last.close, volume: 0 };
+                    filledData.push(fake);
+                    last = fake;
+                    nextTime += intervalSeconds;
+                }
+                
+                const connectedCandle = {
+                    time: curr.time,
+                    open: last.close,
+                    high: Math.max(last.close, curr.high),
+                    low: Math.min(last.close, curr.low),
+                    close: curr.close,
+                    volume: curr.volume,
+                };
+                filledData.push(connectedCandle);
+                last = connectedCandle;
+            }
+
+            // Kéo nến ngang đến hiện tại
+            const nowSeconds = Math.floor(Date.now() / 1000);
+            const currentIntervalTime = nowSeconds - (nowSeconds % intervalSeconds);
+            let nextFakeTime = last.time + intervalSeconds;
+
+            while (nextFakeTime <= currentIntervalTime) {
+                const fake = { time: nextFakeTime, open: last.close, high: last.close, low: last.close, close: last.close, volume: 0 };
+                filledData.push(fake);
+                last = fake;
+                nextFakeTime += intervalSeconds;
+            }
+
+            lastCandleRef.current = last;
+
+            // Render
+            if (candleSeriesRef.current && volumeSeriesRef.current) {
+                candleSeriesRef.current.setData(filledData);
+                volumeSeriesRef.current.setData(filledData.map((d) => ({
+                    time: d.time, value: d.volume, color: d.close >= d.open ? '#22c55e80' : '#ef444480', 
+                })));
             }
         } catch (error) {
-            console.error("Failed to load chart", error);
+            console.error("Chart fetch error", error);
         }
-    }, [assetId]);
+    }, [assetId, resolution, intervalSeconds]);
 
-    // Auto-refresh mỗi 5s
-    useEffect(() => {
-        fetchChartData();
-        const interval = setInterval(fetchChartData, 5000);
-        return () => clearInterval(interval);
-    }, [fetchChartData]);
-
-    // 2. Khởi tạo Chart (Chạy 1 lần)
+    // ========================================================
+    // 2. KHỞI TẠO CHART CƠ BẢN
+    // ========================================================
     useEffect(() => {
         if (!chartContainerRef.current) return;
 
-        // --- Cấu hình Chart ---
         const chart = createChart(chartContainerRef.current, {
-            layout: {
-                background: { type: ColorType.Solid, color: 'transparent' },
-                textColor: '#94a3b8',
-            },
-            grid: {
-                vertLines: { color: '#1e293b' },
-                horzLines: { color: '#1e293b' },
-            },
+            layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: '#94a3b8' },
+            grid: { vertLines: { color: '#1e293b', style: 2 }, horzLines: { color: '#1e293b', style: 2 } },
             width: chartContainerRef.current.clientWidth,
-            height: 450, // Tăng chiều cao chút
-            timeScale: {
-                timeVisible: true,
-                secondsVisible: false,
-                borderColor: '#1e293b',
-            },
-            rightPriceScale: {
-                borderColor: '#1e293b',
-                scaleMargins: {
-                    top: 0.1,    // Chừa 10% bên trên
-                    bottom: 0.2, // Chừa 20% bên dưới cho Volume
-                },
-            },
-            crosshair: {
-                // Hiển thị đường gióng
-                vertLine: {
-                    width: 1,
-                    color: '#94a3b8',
-                    style: 3, // Dotted
-                },
-                horzLine: {
-                    visible: true,
-                    labelVisible: true,
-                },
-            },
+            height: 480, // Tăng thêm chút chiều cao cho thoáng
+            timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#1e293b', rightOffset: 8 }, 
+            rightPriceScale: { borderColor: '#1e293b', scaleMargins: { top: 0.1, bottom: 0.2 } },
+            crosshair: { mode: 1 },
         });
 
-        // --- Thêm Series Nến (Main) ---
-        // SỬA LỖI V5.0: Dùng addSeries(CandlestickSeries, options)
         const candlestickSeries = chart.addSeries(CandlestickSeries, {
-            upColor: '#22c55e',
-            downColor: '#ef4444',
-            borderVisible: false,
-            wickUpColor: '#22c55e',
-            wickDownColor: '#ef4444',
-            priceFormat: {
-                type: 'price',
-                precision: 9, // Hiển thị 9 số lẻ
-                minMove: 0.000000001,
-            },
+            upColor: '#22c55e', downColor: '#ef4444', borderVisible: false,
+            wickUpColor: '#22c55e', wickDownColor: '#ef4444',
+            priceFormat: { type: 'price', precision: 9, minMove: 0.000000001 },
         });
 
-        // --- Thêm Series Volume (Phụ) ---
         const volumeSeries = chart.addSeries(HistogramSeries, {
             priceFormat: { type: 'volume' },
-            priceScaleId: '', // Overlay lên cùng biểu đồ
+            priceScaleId: '',
         });
-        
-        // Đẩy volume xuống đáy biểu đồ
-        volumeSeries.priceScale().applyOptions({
-            scaleMargins: {
-                top: 0.85, // Volume chỉ chiếm 15% chiều cao bên dưới
-                bottom: 0,
-            },
-        });
+        volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
 
         candleSeriesRef.current = candlestickSeries;
         volumeSeriesRef.current = volumeSeries;
+        chartRef.current = chart;
 
-        // --- Nạp dữ liệu ban đầu ---
-        if (chartData.length > 0) {
-            candlestickSeries.setData(chartData);
-            
-            const volumeData = chartData.map((d: any) => ({
-                time: d.time,
-                value: d.volume || 0,
-                color: d.close >= d.open ? '#22c55e80' : '#ef444480',
-            }));
-            volumeSeries.setData(volumeData);
-            
-            chart.timeScale().fitContent();
-        }
-
-        // --- Xử lý Tooltip (Crosshair Move) ---
         chart.subscribeCrosshairMove((param) => {
-            if (
-                param.point === undefined ||
-                !param.time ||
-                param.point.x < 0 ||
-                param.point.x > chartContainerRef.current!.clientWidth ||
-                param.point.y < 0 ||
-                param.point.y > chartContainerRef.current!.clientHeight
-            ) {
+            if (!param.point || !param.time || param.point.x < 0 || param.point.y < 0) {
                 setTooltip(null);
             } else {
-                // Lấy data của nến tại vị trí chuột
-                const candleData = param.seriesData.get(candlestickSeries) as any;
-                const volumeData = param.seriesData.get(volumeSeries) as any;
-                
-                if (candleData) {
-                    const dateStr = formatDateTime(Number(param.time) * 1000);
+                const candle = param.seriesData.get(candlestickSeries) as any;
+                const vol = param.seriesData.get(volumeSeries) as any;
+                if (candle) {
                     setTooltip({
-                        visible: true,
-                        o: candleData.open,
-                        h: candleData.high,
-                        l: candleData.low,
-                        c: candleData.close,
-                        v: volumeData?.value || 0,
-                        time: dateStr,
-                        color: candleData.close >= candleData.open ? 'text-green-500' : 'text-red-500'
+                        visible: true, o: candle.open, h: candle.high, l: candle.low, c: candle.close, v: vol?.value || 0,
+                        time: formatDateTime(Number(param.time) * 1000), color: candle.close >= candle.open ? 'text-green-500' : 'text-red-500'
                     });
                 }
             }
         });
 
-        // Resize
-        const handleResize = () => {
-            chart.applyOptions({ width: chartContainerRef.current?.clientWidth });
-        };
+        const handleResize = () => chart.applyOptions({ width: chartContainerRef.current?.clientWidth });
         window.addEventListener('resize', handleResize);
-
-        chartRef.current = chart;
 
         return () => {
             window.removeEventListener('resize', handleResize);
             chart.remove();
         };
-    }, []); // Init once
+    }, []); // Chỉ render sườn Chart 1 lần
 
-    // Update data khi state change lần đầu
+    // ========================================================
+    // 3. TICK ENGINE & TỰ ĐỘNG CHẠY LẠI KHI ĐỔI KHUNG GIỜ
+    // ========================================================
     useEffect(() => {
-        if (candleSeriesRef.current && volumeSeriesRef.current && chartData.length > 0) {
-            candleSeriesRef.current.setData(chartData);
-            volumeSeriesRef.current.setData(chartData.map((d: any) => ({
-                time: d.time,
-                value: d.volume || 0,
-                color: d.close >= d.open ? '#22c55e80' : '#ef444480',
-            })));
-        }
-    }, [chartData]);
+        fetchChartData(); // Lấy data mỗi khi assetId hoặc resolution thay đổi
+
+        const pollInterval = setInterval(() => {
+            fetchChartData();
+        }, 5000);
+
+        const tickInterval = setInterval(() => {
+            if (!candleSeriesRef.current || !lastCandleRef.current) return;
+            
+            const now = Math.floor(Date.now() / 1000);
+            const currentBucket = now - (now % intervalSeconds);
+            const lastCandle = lastCandleRef.current;
+
+            if (currentBucket > lastCandle.time) {
+                const newEmptyCandle = {
+                    time: currentBucket as Time, open: lastCandle.close, high: lastCandle.close, low: lastCandle.close, close: lastCandle.close,
+                };
+                candleSeriesRef.current.update(newEmptyCandle);
+                lastCandleRef.current = newEmptyCandle;
+            }
+        }, 1000);
+
+        return () => {
+            clearInterval(pollInterval);
+            clearInterval(tickInterval);
+        };
+    }, [fetchChartData, intervalSeconds]);
 
     return (
         <div className="glass-panel p-4 border border-border/50 rounded-xl bg-card/30 backdrop-blur-md relative">
-            {/* Header Chart */}
-            <div className="flex justify-between items-center mb-2 border-b border-border/30 pb-2">
-                <div className="flex items-center gap-4">
-                    <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        LIVE CHART
-                    </h3>
-                    {/* Floating Tooltip Values */}
-                    {tooltip && (
-                        <div className="hidden md:flex gap-4 text-xs font-mono">
-                            <span>O: <span className={tooltip.color}>{formatPrice(tooltip.o)}</span></span>
-                            <span>H: <span className={tooltip.color}>{formatPrice(tooltip.h)}</span></span>
-                            <span>L: <span className={tooltip.color}>{formatPrice(tooltip.l)}</span></span>
-                            <span>C: <span className={tooltip.color}>{formatPrice(tooltip.c)}</span></span>
-                            <span className="text-muted-foreground">Vol: {tooltip.v.toFixed(2)}</span>
-                        </div>
-                    )}
+            
+            {/* Header Chart chuẩn Sàn DEX */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 border-b border-border/30 pb-3 gap-3">
+                <div className="flex flex-col">
+                    {/* Tên cặp giao dịch thay cho "LIVE CHART" */}
+                    <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-xl text-foreground">
+                            {token ? `${token.ticker} / ADA` : 'Loading...'}
+                        </h3>
+                        <span className="bg-secondary text-secondary-foreground text-[10px] px-1.5 py-0.5 rounded font-mono uppercase">
+                            Hydra L2
+                        </span>
+                    </div>
+
+                    {/* Dữ liệu Tooltip hiển thị gọn gàng bên dưới tên cặp */}
+                    <div className="h-4 flex items-center mt-1">
+                        {tooltip ? (
+                            <div className="flex gap-3 text-[11px] font-mono">
+                                <span>O <span className={tooltip.color}>{formatPrice(tooltip.o)}</span></span>
+                                <span>H <span className={tooltip.color}>{formatPrice(tooltip.h)}</span></span>
+                                <span>L <span className={tooltip.color}>{formatPrice(tooltip.l)}</span></span>
+                                <span>C <span className={tooltip.color}>{formatPrice(tooltip.c)}</span></span>
+                            </div>
+                        ) : (
+                            <span className="text-[11px] text-muted-foreground">Hover trên biểu đồ để xem chi tiết nến</span>
+                        )}
+                    </div>
                 </div>
-                <div className="text-xs text-muted-foreground font-mono">15m</div>
+
+                {/* Thanh chọn Khung Giờ (Timeframe Selector) */}
+                <div className="flex bg-background border border-border/50 rounded-lg p-1 shrink-0">
+                    {(Object.keys(RESOLUTIONS) as ResolutionKey[]).map((res) => (
+                        <button
+                            key={res}
+                            onClick={() => setResolution(res)}
+                            className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                                resolution === res
+                                    ? 'bg-primary/20 text-primary' // Hiệu ứng sáng màu khi chọn
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                            }`}
+                        >
+                            {res}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Container vẽ Chart */}
-            <div ref={chartContainerRef} className="w-full h-[450px] relative" />
-
-            {/* Mobile Tooltip Overlay (Nếu cần) */}
-            {tooltip && (
-                <div className="absolute top-16 left-4 bg-background/90 backdrop-blur border border-border p-2 rounded text-xs font-mono shadow-xl md:hidden pointer-events-none z-10">
-                     <div className="text-muted-foreground mb-1">{tooltip.time}</div>
-                     <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                        <span>Open:</span> <span className={tooltip.color}>{formatPrice(tooltip.o)}</span>
-                        <span>High:</span> <span className={tooltip.color}>{formatPrice(tooltip.h)}</span>
-                        <span>Low:</span> <span className={tooltip.color}>{formatPrice(tooltip.l)}</span>
-                        <span>Close:</span> <span className={tooltip.color}>{formatPrice(tooltip.c)}</span>
-                        <span>Vol:</span> <span>{tooltip.v.toFixed(2)}</span>
-                     </div>
-                </div>
-            )}
+            <div ref={chartContainerRef} className="w-full h-[480px] relative outline-none" />
         </div>
     );
 };

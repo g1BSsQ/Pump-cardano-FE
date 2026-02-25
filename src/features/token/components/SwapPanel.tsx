@@ -2,134 +2,242 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { useWallet } from "@meshsdk/react"; // <-- Import hook ví
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider"; // Import Slider
-import { Settings, ArrowDown, Wallet, Info } from "lucide-react";
+import { Slider } from "@/components/ui/slider"; 
+import { Settings, Wallet, Info } from "lucide-react";
 import { Token } from "@/features/create/types";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
-// Mock Balance (Sau này thay bằng balance thật từ ví)
-const MOCK_ADA_BALANCE = 1500; 
-const MOCK_TOKEN_BALANCE = 10000;
+// --- COMPONENT FORMAT GIÁ HIỂN THỊ (Subscript Zeros) ---
+const FormattedPrice = ({ price }: { price: number }) => {
+  if (!price) return <span>0</span>;
+  const priceStr = price.toFixed(10).replace(/0+$/, ''); // Cắt số 0 thừa
+  const match = priceStr.match(/^0\.0+/);
+  
+  if (match) {
+    const zeroCount = match[0].length - 2; // Số lượng số 0 sau dấu phẩy
+    if (zeroCount >= 3) {
+      const remaining = priceStr.slice(match[0].length);
+      return (
+        <span>
+          0.0<sub className="text-[10px] mt-1">{zeroCount}</sub>{remaining}
+        </span>
+      );
+    }
+  }
+  return <span>{priceStr}</span>;
+}
 
 export const SwapPanel = ({ token }: { token: Token }) => {
+  const { wallet, connected } = useWallet(); // Lấy ví người dùng
+  
   const [mode, setMode] = useState<'buy' | 'sell'>('buy');
   const [amount, setAmount] = useState<string>(""); 
   const [estimated, setEstimated] = useState<string>("0");
   const [loading, setLoading] = useState(false);
-  const [sliderVal, setSliderVal] = useState([0]); // State cho Slider (0-100%)
-  const [slippage, setSlippage] = useState("5"); // Mặc định slippage 5%
+  const [sliderVal, setSliderVal] = useState([0]); 
+  const [slippage, setSlippage] = useState("5"); 
 
-  const price = Number(token.currentPrice) || 0.000001;
+  // --- STATE LƯU TRỮ SỐ DƯ THẬT ---
+  const [adaBalance, setAdaBalance] = useState(0);
+  const [tokenBalance, setTokenBalance] = useState(0);
 
-  // Lấy balance hiện tại theo mode
-  const currentBalance = mode === 'buy' ? MOCK_ADA_BALANCE : MOCK_TOKEN_BALANCE;
+  const price = Number(token.pool?.currentPrice) || 0.000001;
+  const currentBalance = mode === 'buy' ? adaBalance : tokenBalance;
 
-  // --- 1. TÍNH TOÁN KHI NHẬP SỐ ---
+  // --- 1. FETCH BALANCE THẬT TỪ L1 HOẶC L2 ---
   useEffect(() => {
-    const val = parseFloat(amount);
-    if (isNaN(val) || val <= 0) {
-      setEstimated("0");
+    const fetchBalances = async () => {
+      if (!connected || !wallet) {
+        setAdaBalance(0);
+        setTokenBalance(0);
+        return;
+      }
+
+      try {
+        const address = await wallet.getChangeAddress();
+        const assetId = token.policyId + token.tokenNameHex;
+        const decimals = token.decimals || 0;
+
+        if (token.pool?.headPort) {
+          // 🔵 NẾU TOKEN ĐANG Ở L2 (HYDRA): Áp dụng chuẩn logic từ useDecommit
+          const balRes = await axios.get(`${API_URL}/users/${address}/balance?headPort=${token.pool.headPort}`);
+          
+          const l2Balance: { lovelace?: string; assets?: Record<string, string> } = balRes.data.balance || { lovelace: "0", assets: {} };
+          
+          const rawLovelace = l2Balance.lovelace || "0";
+          const rawToken = l2Balance.assets?.[assetId] || "0";
+
+          setAdaBalance(Number(rawLovelace) / 1_000_000); // Lovelace -> ADA
+          setTokenBalance(Number(rawToken) / Math.pow(10, decimals)); 
+          
+        } else {
+          // 🟡 NẾU TOKEN Ở L1: Lấy trực tiếp từ ví MeshJS
+          const lovelace = await wallet.getLovelace();
+          setAdaBalance(Number(lovelace) / 1_000_000);
+
+          const assets = await wallet.getBalance();
+          const tokenAsset = assets.find(a => a.unit === assetId);
+          setTokenBalance(tokenAsset ? (Number(tokenAsset.quantity) / Math.pow(10, decimals)) : 0);
+        }
+      } catch (error) {
+        console.error("Failed to fetch balance", error);
+      }
+    };
+
+    fetchBalances();
+    // Poll mỗi 5 giây để cập nhật số dư mới nhất
+    const interval = setInterval(fetchBalances, 5000);
+    return () => clearInterval(interval);
+  }, [connected, wallet, token]);
+
+  // --- 2. TÍNH TOÁN KHI NHẬP SỐ ---
+  useEffect(() => {
+  const val = parseFloat(amount);
+  if (isNaN(val) || val <= 0) {
+    setEstimated("0");
+    return;
+  }
+
+  const decimals = token.decimals || 0;
+
+  if (mode === 'buy') {
+    // Buy: ADA / (ADA/Token) = Tokens nhận được
+    const tokenReceived = val / price;
+    // Làm tròn theo đúng số lẻ của token
+    setEstimated(tokenReceived.toFixed(decimals));
+  } else {
+    // Sell: Tokens * (ADA/Token) = ADA nhận được
+    const adaReceived = val * price;
+    setEstimated(adaReceived.toFixed(6)); // ADA luôn 6 số lẻ
+  }
+}, [amount, mode, price, currentBalance, sliderVal, token.decimals]);
+
+  // --- 3. XỬ LÝ KHI KÉO SLIDER ---
+  const handleSliderChange = (vals: number[]) => {
+    setSliderVal(vals);
+    const percent = vals[0];
+    if (percent === 0) { setAmount(""); return; }
+
+    const decimals = token.decimals || 0;
+    const calculatedAmount = (currentBalance * percent) / 100;
+    
+    if (mode === 'buy') {
+      // ADA tính theo 2 số lẻ hoặc giữ nguyên tùy ví
+      setAmount(calculatedAmount.toFixed(2));
+    } else {
+      // Token tính theo đúng số lẻ decimals
+      setAmount(calculatedAmount.toFixed(decimals));
+    }
+};
+  // --- 4. XỬ LÝ GIAO DỊCH ---
+  const handleTrade = async () => {
+    if (!connected || !wallet) {
+      toast.error("Vui lòng kết nối ví trước!");
       return;
     }
 
-    // Update Slider ngược lại (Nếu user gõ phím)
-    // Ví dụ: Có 100 ADA, gõ 50 -> Slider nhảy về 50%
-    if (currentBalance > 0) {
-        const percent = Math.min((val / currentBalance) * 100, 100);
-        // Chỉ update slider nếu chênh lệch đáng kể để tránh loop
-        if (Math.abs(percent - sliderVal[0]) > 1) {
-             setSliderVal([percent]);
-        }
-    }
-
-    if (mode === 'buy') {
-      const tokenReceived = val / price;
-      setEstimated(tokenReceived.toLocaleString('en-US', { maximumFractionDigits: 2 }));
-    } else {
-      const adaReceived = val * price;
-      setEstimated(adaReceived.toLocaleString('en-US', { maximumFractionDigits: 6 }));
-    }
-  }, [amount, mode, price, currentBalance]);
-
-  // --- 2. XỬ LÝ KHI KÉO SLIDER ---
-  const handleSliderChange = (vals: number[]) => {
-      setSliderVal(vals);
-      const percent = vals[0];
-      
-      if (percent === 0) {
-          setAmount("");
-          return;
-      }
-
-      // Tính số lượng dựa trên % Balance
-      const calculatedAmount = (currentBalance * percent) / 100;
-      
-      // Làm tròn số đẹp
-      // Nếu là ADA (Buy) thì lấy 2 số lẻ, Token (Sell) thì lấy số nguyên hoặc 2 số lẻ
-      const formattedAmount = mode === 'buy' 
-        ? calculatedAmount.toFixed(2)
-        : calculatedAmount.toFixed(2);
-
-      setAmount(formattedAmount);
-  };
-
-  // --- 3. XỬ LÝ GIAO DỊCH ---
-  const handleTrade = async () => {
     if (!amount || parseFloat(amount) <= 0) return;
     
     try {
       setLoading(true);
-      const fakeTrader = "addr_test1_fake_user_" + Math.floor(Math.random() * 1000);
+      const traderAddress = await wallet.getChangeAddress(); // Lấy ví thật thay vì fakeTrader
 
-      let adaAmount = 0;
-      let tokenAmount = 0;
+      const cleanEstimated = estimated.replace(/,/g, '');
+  const cleanAmount = amount.replace(/,/g, '');
+
+  let adaAmount = 0;
+  let tokenAmount = 0;
 
       if (mode === 'buy') {
-          adaAmount = parseFloat(amount);
-          tokenAmount = parseFloat(estimated.replace(/,/g, ''));
+adaAmount = parseFloat(cleanAmount);
+      tokenAmount = parseFloat(cleanEstimated);
       } else {
-          tokenAmount = parseFloat(amount);
-          adaAmount = parseFloat(estimated.replace(/,/g, ''));
+tokenAmount = parseFloat(cleanAmount);
+      adaAmount = parseFloat(cleanEstimated);
       }
 
-      // Nếu là Hydra token và đang mua -> Dùng API Buy Hydra (Deposit ADA UTxO)
-      if (token.headPort && mode === 'buy') {
-        console.log("Using Hydra L2 Buy flow");
-        await axios.post(`${API_URL}/tokens/buy/hydra`, {
+      if (token.pool?.headPort) {
+        const endpoint = mode === 'buy' ? '/pools/buy/hydra' : '/pools/sell/hydra';
+        
+        const buildRes = await axios.post(`${API_URL}${endpoint}`, {
           assetId: token.assetId,
-          adaAmount,
-          buyerAddress: fakeTrader,
+          tokenAmount,
+          [mode === 'buy' ? 'buyerAddress' : 'sellerAddress']: traderAddress, 
+          slippage: parseFloat(slippage) || 0,
+        });
+        
+        // 1. Lấy dữ liệu thực tế từ Backend trả về
+        const payload = buildRes.data.data; 
+        const txHex = payload.txHex;
+        
+        // Con số ADA thực tế mà Blockchain sẽ thực hiện
+        // Với Buy là adaCost, với Sell là adaReceive
+        const actualAdaAmount = mode === 'buy' ? payload.adaCost : payload.adaReceive;
+        
+        // 2. Ký giao dịch
+        const signedTx = await wallet.signTx(txHex, true);
+        
+        // 3. Đẩy lên Head và ghi vào Database con số THẬT
+        await axios.post(`${API_URL}/pools/hydra/submit`, {
+          assetId: token.assetId,
+          type: mode === 'buy' ? 'BUY' : 'SELL',
+          adaAmount: Number(actualAdaAmount) / 1_000_000, // Chuyển từ Lovelace về ADA để lưu DB
+          tokenAmount,
+          traderAddress,
+          signedTxHex: signedTx,
+          slippage: parseFloat(slippage) || 0,
         });
       } else {
-        // Gửi cả Slippage lên backend (để backend check Hydra logic)
-        await axios.post(`${API_URL}/tokens/trade/simulate`, {
+        await axios.post(`${API_URL}/pools/trade/simulate`, {
           assetId: token.assetId,
           type: mode === 'buy' ? 'BUY' : 'SELL',
           adaAmount,
           tokenAmount,
-          traderAddress: fakeTrader,
-          slippage: parseFloat(slippage) // Gửi slippage lên
+          traderAddress,
+          slippage: parseFloat(slippage),
         });
       }
 
-      toast.success(`${mode === 'buy' ? 'Buy' : 'Sell'} successful!`);
+      toast.success(`${mode === 'buy' ? 'Buy' : 'Sell'} thành công!`);
       setAmount("");
       setSliderVal([0]);
       setEstimated("0");
       
-    } catch (error) {
-      console.error("Trade failed", error);
-      toast.error("Trade failed. Price moved too fast!"); // Báo lỗi kiểu Slippage
-    } finally {
-      setLoading(false);
+    } catch (error: any) {
+  console.error("🔥 Chi tiết lỗi Trade:", error);
+  
+  // 1. Trích xuất thông điệp lỗi từ Backend (NestJS)
+  const backendError = error.response?.data?.message;
+  
+  // 2. Trích xuất lỗi từ Hydra Node (nếu có trong message)
+  let displayMessage = "Giao dịch thất bại";
+  
+  if (backendError) {
+    displayMessage = backendError;
+    // Nếu lỗi liên quan đến trượt giá thực sự
+    if (backendError.includes('slippage')) {
+      displayMessage = "Giá đã thay đổi quá mức Slippage cho phép!";
     }
+  } else if (error.message) {
+    displayMessage = error.message;
+  }
+
+  // 3. Hiển thị thông báo chi tiết lên màn hình
+  toast.error(displayMessage, {
+    description: "Vui lòng kiểm tra Console (F12) để xem chi tiết kỹ thuật.",
+    duration: 5000,
+  });
+
+} finally {
+  setLoading(false);
+}
   };
 
   return (
@@ -147,23 +255,32 @@ export const SwapPanel = ({ token }: { token: Token }) => {
       </Tabs>
 
       <div className="p-4 space-y-5">
-        {token.headPort && (
+        
+        {/* THÔNG BÁO HYDRA */}
+        {token.pool?.headPort && (
           <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex items-start gap-3">
             <Info className="w-4 h-4 text-blue-500 mt-0.5" />
             <div className="space-y-1">
               <p className="text-xs font-semibold text-blue-500">Hydra L2 Enabled</p>
               <p className="text-[10px] text-blue-500/80 leading-tight">
-                This token is trading on Hydra Head #{token.headPort}. Your purchase will be processed as a UTxO deposit to the L2 head.
+                This token is trading on Hydra Head #{token.pool?.headPort}. Your purchase will be processed as a UTxO deposit to the L2 head.
               </p>
             </div>
           </div>
         )}
+
+        {/* PRICE DISPLAY */}
+        <div className="flex justify-between items-center bg-muted/30 p-2 rounded-md border border-border/30">
+           <span className="text-xs text-muted-foreground">Current Price</span>
+           <span className="text-sm font-bold font-mono text-primary flex items-center gap-1">
+              <FormattedPrice price={price} /> ADA
+           </span>
+        </div>
         
         {/* SETTINGS & BALANCE */}
         <div className="flex justify-between items-center text-xs text-muted-foreground">
-            {/* Popover chỉnh Max Slippage */}
             <Popover>
-                <PopoverTrigger className="flex items-center gap-1 hover:text-primary transition-colors">
+                <PopoverTrigger className="flex items-center gap-1 hover:text-primary transition-colors cursor-pointer">
                     <Settings className="w-3 h-3" />
                     <span>Slippage: {slippage}%</span>
                 </PopoverTrigger>
@@ -193,9 +310,14 @@ export const SwapPanel = ({ token }: { token: Token }) => {
                 </PopoverContent>
             </Popover>
 
-            <div className="flex items-center gap-1">
+            <div 
+              className="flex items-center gap-1 cursor-pointer hover:text-primary transition-colors"
+              onClick={() => handleSliderChange([100])}
+            >
                 <Wallet className="w-3 h-3" />
-                <span>Bal: {currentBalance.toLocaleString()} {mode === 'buy' ? 'ADA' : token.ticker}</span> 
+                <span className="font-mono">
+                  Bal: {currentBalance.toLocaleString('en-US', { maximumFractionDigits: 2 })} {mode === 'buy' ? 'ADA' : token.ticker}
+                </span> 
             </div>
         </div>
 
@@ -206,7 +328,7 @@ export const SwapPanel = ({ token }: { token: Token }) => {
                     <span>Amount</span>
                     <span 
                         className="font-mono text-primary cursor-pointer hover:underline"
-                        onClick={() => handleSliderChange([100])} // Bấm Max = 100%
+                        onClick={() => handleSliderChange([100])}
                     >
                         Max
                     </span>
@@ -227,14 +349,9 @@ export const SwapPanel = ({ token }: { token: Token }) => {
                 </div>
             </div>
 
-            {/* --- SLIDER COMPONENT --- */}
             <div className="px-1 py-2">
                 <div className="flex justify-between text-[10px] text-muted-foreground mb-2 px-1">
-                    <span>0%</span>
-                    <span>25%</span>
-                    <span>50%</span>
-                    <span>75%</span>
-                    <span>100%</span>
+                    <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
                 </div>
                 <Slider 
                     value={sliderVal} 
@@ -248,19 +365,19 @@ export const SwapPanel = ({ token }: { token: Token }) => {
 
         {/* OUTPUT & INFO */}
         <div className="bg-secondary/20 p-3 rounded-lg border border-border/50 text-xs space-y-2">
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">You receive</span>
-                <span className="font-bold font-mono text-sm">{estimated} {mode === 'buy' ? token.ticker : 'ADA'}</span>
+                <span className="font-bold font-mono text-sm text-foreground">{estimated} {mode === 'buy' ? token.ticker : 'ADA'}</span>
             </div>
             {amount && (
                 <>
                     <div className="flex justify-between">
                         <span className="text-muted-foreground">Price Impact</span>
-                        <span className="text-orange-500">~2.5%</span> 
+                        <span className="text-orange-500">~0.5%</span> 
                     </div>
                     <div className="flex justify-between">
                         <span className="text-muted-foreground">Hydra Fee</span>
-                        <span className="text-green-500">~0.00 ADA (Free)</span>
+                        <span className="text-green-500">Free</span>
                     </div>
                 </>
             )}
@@ -269,14 +386,16 @@ export const SwapPanel = ({ token }: { token: Token }) => {
         {/* MAIN BUTTON */}
         <Button 
             className={`w-full font-bold text-lg h-12 shadow-lg transition-all ${
-                mode === 'buy' 
+                !connected 
+                ? 'bg-muted text-muted-foreground'
+                : mode === 'buy' 
                 ? 'bg-green-500 hover:bg-green-600 shadow-green-500/20 text-white' 
                 : 'bg-red-500 hover:bg-red-600 shadow-red-500/20 text-white'
             }`}
             onClick={handleTrade}
-            disabled={loading || !amount || parseFloat(amount) <= 0}
+            disabled={loading || !connected || !amount || parseFloat(amount) <= 0}
         >
-            {loading ? "Processing..." : (mode === 'buy' ? `Buy ${token.ticker}` : `Sell ${token.ticker}`)}
+            {!connected ? "Connect Wallet" : loading ? "Processing..." : (mode === 'buy' ? `Buy ${token.ticker}` : `Sell ${token.ticker}`)}
         </Button>
       </div>
     </div>

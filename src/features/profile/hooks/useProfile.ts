@@ -21,66 +21,68 @@ export const useProfile = (address: string) => {
   const [createdTokensCount, setCreatedTokensCount] = useState(0);
 
   useEffect(() => {
-    fetchProfile();
-    fetchTokenHoldings();
-    fetchCreatedTokensCount();
-  }, [address]);
-
-  const fetchProfile = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get<UserProfile>(`${API_URL}/users/${address}/profile`);
-      setProfile(res.data);
-      setEditedUsername(res.data.username);
-      setEditedBio(res.data.bio || '');
-      setEditedAvatar(res.data.avatar);
-    } catch (err) {
-      console.error('Error fetching profile:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchTokenHoldings = async () => {
-    try {
-      setLoadingTokens(true);
-      const res = await axios.get<TokenHolding[]>(`${API_URL}/users/${address}/tokens`);
-      setTokenHoldings(res.data);
-
-      const assetIds = res.data.map((h) => h.assetId);
-      if (assetIds.length > 0) {
-        const results = await Promise.all(
-          assetIds.map(async (assetId) => {
-            try {
-              const tokenRes = await axios.get<TokenInfo>(`${API_URL}/tokens/${assetId}`);
-              return { assetId, info: tokenRes.data };
-            } catch {
-              return null;
-            }
-          })
-        );
-        const infoMap: Record<string, TokenInfo> = {};
-        results.forEach((r) => { if (r) infoMap[r.assetId] = r.info; });
-        setTokensInfo(infoMap);
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        const res = await axios.get<UserProfile>(`${API_URL}/users/${address}/profile`);
+        setProfile(res.data);
+        setEditedUsername(res.data.username);
+        setEditedBio(res.data.bio || '');
+        setEditedAvatar(res.data.avatar);
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Error fetching token holdings:', err);
-    } finally {
-      setLoadingTokens(false);
-    }
-  };
+    };
 
-  const fetchCreatedTokensCount = async () => {
-    try {
-      const res = await axios.get<{ address: string; createdTokens: number }>(
-        `${API_URL}/users/${address}/created-tokens`
-      );
-      setCreatedTokensCount(res.data.createdTokens);
-    } catch (err) {
-      console.error('Error fetching created tokens count:', err);
-    }
-  };
+    const fetchTokenHoldings = async () => {
+      try {
+        setLoadingTokens(true);
+        const res = await axios.get<TokenHolding[]>(`${API_URL}/users/${address}/tokens`);
+        setTokenHoldings(res.data);
 
+        const assetIds = res.data.map((h) => h.assetId);
+        if (assetIds.length > 0) {
+          const results = await Promise.all(
+            assetIds.map(async (assetId) => {
+              try {
+                const tokenRes = await axios.get<TokenInfo>(`${API_URL}/tokens/${assetId}`);
+                return { assetId, info: tokenRes.data };
+              } catch {
+                return null;
+              }
+            })
+          );
+          const infoMap: Record<string, TokenInfo> = {};
+          results.forEach((r) => { if (r) infoMap[r.assetId] = r.info; });
+          setTokensInfo(infoMap);
+        }
+      } catch (err) {
+        console.error('Error fetching token holdings:', err);
+      } finally {
+        setLoadingTokens(false);
+      }
+    };
+
+    const fetchCreatedTokensCount = async () => {
+      try {
+        const res = await axios.get<{ address: string; createdTokens: number }>(
+          `${API_URL}/users/${address}/created-tokens`
+        );
+        setCreatedTokensCount(res.data.createdTokens);
+      } catch (err) {
+        console.error('Error fetching created tokens count:', err);
+      }
+    };
+
+    const load = async () => {
+      await fetchProfile();
+      await fetchTokenHoldings();
+      await fetchCreatedTokensCount();
+    };
+    load();
+  }, [address]);
   const handleSave = async () => {
     try {
       setSaving(true);

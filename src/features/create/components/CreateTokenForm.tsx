@@ -32,7 +32,7 @@ export const CreateTokenForm = () => {
   const [website, setWebsite] = useState("");
 
   const { walletState, formState, status, txHash, error, mintedToken, actions } = useCreateToken();
-  const { status: depositStatus, depositTxHash, depositToHead } = useDepositToken();
+  const { status: depositStatus, depositTxHash, error: depositError, depositToHead } = useDepositToken();
 
 const isStep1Valid = walletState.connected && formState.file && assetName.trim() && assetDescription.trim() && ticker.trim();
   const [prevStatus, setPrevStatus] = useState(status);
@@ -122,7 +122,8 @@ const isStep1Valid = walletState.connected && formState.file && assetName.trim()
     status === "minting" ||
     status === "awaiting_confirmation" ||
     depositStatus === "depositing" ||
-    status === "minted";
+    status === "minted";  // allow back after error so user can try again
+
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 p-6">
@@ -313,6 +314,21 @@ const isStep1Valid = walletState.connected && formState.file && assetName.trim()
                       </>
                     )}
                   </Button>
+
+                  {/* show tx hash / errors while we're in step3 */}
+                  {depositTxHash && depositStatus !== "depositing" && (
+                    <p className="mt-4 text-xs font-mono bg-secondary p-2 rounded break-all">
+                      Tx submitted: {depositTxHash}
+                    </p>
+                  )}
+
+                  {depositStatus === "error" && (
+                    <div className="mt-4 flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <p className="text-sm">{depositError}</p>
+                    </div>
+                  )
+                  }
                 </motion.div>
               )}
             </AnimatePresence>

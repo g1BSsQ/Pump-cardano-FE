@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useWallet } from "@meshsdk/react";
-import { Transaction, resolveTxHash } from "@meshsdk/core";
 import axios from "axios";
 import { BridgeAsset, DepositHook } from "../types";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +18,15 @@ export const useDeposit = (): DepositHook => {
 
   // 1. Fetch data tài sản L1
   useEffect(() => {
+    interface ApiToken {
+      assetId: string;
+      ticker: string;
+      tokenName?: string;
+      logoUrl?: string;
+      imageUrl?: string;
+      decimals?: number;
+    }
+
     const fetchL1Data = async () => {
       if (!connected || !wallet) {
         setAllAssets([]);
@@ -27,13 +35,13 @@ export const useDeposit = (): DepositHook => {
       setIsLoading(true);
       try {
         const [tokensRes, l1Balances] = await Promise.all([
-          axios.get(`${API_URL}/tokens?limit=100`),
+          axios.get<{ data: ApiToken[] }>(`${API_URL}/tokens?limit=100`),
           wallet.getBalance()
         ]);
 
-        let dbTokens = tokensRes.data.data || [];
+        let dbTokens: ApiToken[] = tokensRes.data.data || [];
         // if list entries lack logoUrl, fetch individual details
-        const enriched = await Promise.all(dbTokens.map(async (t: any) => {
+        const enriched = await Promise.all(dbTokens.map(async (t) => {
           if (!t.logoUrl) {
             try {
               const res = await axios.get(`${API_URL}/tokens/${t.assetId}`);
@@ -56,7 +64,7 @@ export const useDeposit = (): DepositHook => {
             rawBalance: l1Balances.find(b => b.unit === "lovelace")?.quantity || "0",
             balance: ""
           },
-          ...dbTokens.map((t: any) => {
+          ...dbTokens.map((t) => {
             const inWallet = l1Balances.find(b => b.unit === t.assetId);
             return {
               unit: t.assetId,
@@ -67,13 +75,13 @@ export const useDeposit = (): DepositHook => {
               rawBalance: inWallet?.quantity || "0",
               balance: ""
             };
-          }).filter((t: any) => Number(t.rawBalance) > 0)
+          }).filter((t) => Number(t.rawBalance) > 0)
         ].map(asset => ({
           ...asset,
           balance: (Number(asset.rawBalance) / Math.pow(10, asset.decimals)).toLocaleString()
         }));
         setAllAssets(mapped);
-      } catch (e) {
+      } catch (e: unknown) {
         console.error("L1 Fetch Error", e);
       } finally {
         setIsLoading(false);
@@ -186,9 +194,14 @@ export const useDeposit = (): DepositHook => {
       toast({ title: "Thành công!", description: `Nạp 1-Chạm thành công. TxHash: ${txHash.substring(0, 10)}...` });
       
       setAdaAmount(""); setTokenAmounts({}); setSelectedUnits([]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      toast({ variant: "destructive", title: "Lỗi nạp", description: error.response?.data?.message || error.message || "Đã xảy ra lỗi" });
+      const msg = axios.isAxiosError(error)
+        ? error.response?.data?.message || error.message
+        : error instanceof Error
+          ? error.message
+          : String(error);
+      toast({ variant: "destructive", title: "Lỗi nạp", description: msg || "Đã xảy ra lỗi" });
     } finally {
       setIsLoading(false);
     }

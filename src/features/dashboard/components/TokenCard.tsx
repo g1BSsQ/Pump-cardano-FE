@@ -9,17 +9,15 @@ interface TokenCardProps {
 }
 
 export function TokenCard({ token }: TokenCardProps) {
-  // Check xem token có đang ở trên Head không (Logic này khớp với API mới)
-  const isOnHead = !!token.headPort && token.head?.status === 'Open';
+  const isOnHead = !!token.pool?.headPort;
 
   return (
     <Link href={`/token/${token.assetId}`}>
       <Card className="hover:border-primary/50 transition-all cursor-pointer h-full relative overflow-hidden group">
-        {/* Badge hiển thị trạng thái Hydra L2 */}
         {isOnHead && (
           <div className="absolute top-2 right-2 z-10">
             <Badge variant="secondary" className="bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20 backdrop-blur-sm">
-              ⚡ Head #{token.headPort}
+              ⚡ Head #{token.pool?.headPort}
             </Badge>
           </div>
         )}

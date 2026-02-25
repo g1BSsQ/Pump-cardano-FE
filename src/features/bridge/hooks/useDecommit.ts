@@ -15,21 +15,25 @@ export const useDecommit = (): DecommitHook => {
   const [assets, setAssets] = useState<BridgeAsset[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  interface ApiHead { status: string; port: number; }
+  interface ApiToken { assetId: string; ticker: string; logoUrl?: string; imageUrl?: string; decimals?: number; }
+
   useEffect(() => {
     const fetchL2Data = async () => {
       if (!connected || !address) return;
       setIsLoading(true);
       try {
         const [headsRes, tokensRes] = await Promise.all([
-          axios.get(`${API_URL}/heads`),
-          axios.get(`${API_URL}/tokens?limit=100`)
+          axios.get<ApiHead[]>(`${API_URL}/heads`),
+          axios.get<{ data: ApiToken[] }>(`${API_URL}/pools?limit=100`)
         ]);
 
-        const head = headsRes.data.find((h: any) => h.status === 'Open') || headsRes.data[0];
+        const heads = headsRes.data;
+        const head = heads.find(h => h.status === 'Open') || heads[0];
         setActiveHead(head);
         
-        let dbTokens = tokensRes.data.data || [];
-        const enriched = await Promise.all(dbTokens.map(async (t: any) => {
+        let dbTokens: ApiToken[] = tokensRes.data.data || [];
+        const enriched = await Promise.all(dbTokens.map(async (t) => {
           if (!t.logoUrl) {
             try {
               const res = await axios.get(`${API_URL}/tokens/${t.assetId}`);
@@ -46,7 +50,7 @@ export const useDecommit = (): DecommitHook => {
           const balRes = await axios.get(`${API_URL}/users/${address}/balance?headPort=${head.port}`);
           
           // SỬA LỖI Ở ĐÂY: Phải trỏ vào object "balance" của Backend trả về
-          const l2Balance = balRes.data.balance || { lovelace: "0", assets: {} };
+          const l2Balance: { lovelace?: string; assets?: Record<string,string> } = balRes.data.balance || { lovelace: "0", assets: {} };
 
           const mapped: BridgeAsset[] = [
             { 
@@ -58,7 +62,7 @@ export const useDecommit = (): DecommitHook => {
               rawBalance: l2Balance.lovelace?.toString() || "0", 
               balance: "" 
             },
-            ...dbTokens.map((t: any) => ({
+            ...dbTokens.map((t) => ({
               unit: t.assetId,
               ticker: t.ticker,
               logoUrl: t.logoUrl || t.imageUrl || undefined,
@@ -66,7 +70,7 @@ export const useDecommit = (): DecommitHook => {
               // Lấy token từ l2Balance.assets
               rawBalance: l2Balance.assets?.[t.assetId]?.toString() || "0",
               balance: ""
-            })).filter((t: any) => Number(t.rawBalance) > 0)
+            })).filter((t) => Number(t.rawBalance) > 0)
           ].map(a => ({ 
             ...a, 
             balance: (Number(a.rawBalance) / Math.pow(10, a.decimals)).toLocaleString() 

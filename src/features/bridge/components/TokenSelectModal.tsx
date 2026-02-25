@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, X, Wallet } from "lucide-react";
+import { Search, Wallet } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -85,7 +85,10 @@ export const TokenSelectModal = ({ isOpen, onClose, tokens, onSelect, balanceKey
                                 alt={token.ticker}
                                 fill
                                 className="object-cover"
-                                onError={(e: any) => (e.target.src = "/fallback-token.png")}
+                                onError={(e) => {
+                                  const targ = e.currentTarget as HTMLImageElement;
+                                  targ.src = "/fallback-token.png";
+                                }}
                                 sizes="40px"
                               />
                             </div>

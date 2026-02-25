@@ -32,7 +32,7 @@ export const useDepositToken = () => {
       const walletAddress = await wallet.getChangeAddress();
 
       // 1. GỌI BACKEND XIN GIAO DỊCH BLUEPRINT (Đã kết hợp với Hydra)
-      const buildRes = await axios.post(`${API_URL}/tokens/build-deposit-tx`, {
+      const buildRes = await axios.post(`${API_URL}/pools/build-deposit-tx`, {
         walletAddress,
         poolTxHash: params.poolTxHash,
         policyId: params.policyId,
@@ -62,18 +62,21 @@ export const useDepositToken = () => {
 
       // 5. BÁO LẠI CHO BACKEND LÀ ĐÃ DEPOSIT THÀNH CÔNG ĐỂ GÁN HEAD
       const assetId = params.policyId + params.assetNameHex;
-      await axios.patch(`${API_URL}/tokens/${assetId}/head`, {
+      await axios.patch(`${API_URL}/pools/${assetId}/head`, {
         headPort: params.headPort
       });
 
       setStatus("success");
+      console.log("useDepositToken: deposit succeeded", txHashResult);
 
     } catch (e: unknown) {
       setStatus("error");
       let errorMessage = "Lỗi không xác định";
       if (e instanceof Error) errorMessage = e.message;
       if (axios.isAxiosError(e)) errorMessage = e.response?.data?.message || errorMessage;
-      setError(`L2 Deposit Failed: ${errorMessage}`);
+      const msg = `L2 Deposit Failed: ${errorMessage}`;
+      setError(msg);
+      console.error("useDepositToken error", msg, e);
     }
   };
 

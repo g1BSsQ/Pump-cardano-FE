@@ -25,7 +25,7 @@ export const useTrades = (assetId: string, limit: number = 50) => {
         setLoading(true);
         setError('');
         
-        const res = await axios.get<Trade[]>(`${API_URL}/tokens/${assetId}/trades`, {
+        const res = await axios.get<Trade[]>(`${API_URL}/pools/${assetId}/trades`, {
           params: { limit }
         });
         

@@ -23,7 +23,7 @@ import type {
 } from "../types";
 
 const blueprint = blueprintData as PlutusBlueprint;
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const useCreateToken = (): UseCreateTokenReturn => {
   const [file, setFile] = useState<File>();

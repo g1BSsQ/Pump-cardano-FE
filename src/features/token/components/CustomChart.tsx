@@ -15,7 +15,7 @@ import { useParams } from 'next/navigation';
 import { formatDateTime } from '@/utils/date';
 import { useTokenDetail } from '../hooks/useTokenDetail';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Cấu hình các khung giờ (giây)
 const RESOLUTIONS = {

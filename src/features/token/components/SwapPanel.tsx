@@ -12,7 +12,7 @@ import { Token } from "@/features/create/types";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // --- COMPONENT FORMAT GIÁ HIỂN THỊ (Subscript Zeros) ---
 const FormattedPrice = ({ price }: { price: number }) => {

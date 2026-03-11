@@ -5,7 +5,7 @@ import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
 import { BridgeAsset, DecommitHook, HydraHead } from "../types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const useDecommit = (): DecommitHook => {
   const { wallet, connected } = useWallet();

@@ -105,6 +105,7 @@ export interface Token {
     priceChange24h: number;
     headPort: number | null;
     status: string;
+    currentSupply?: string;
   };
 }
 

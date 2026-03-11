@@ -38,16 +38,16 @@ export function TokenGrid() {
     
     switch(sortField) {
       case 'marketCap':
-        aVal = parseFloat(a.marketCap || '0');
-        bVal = parseFloat(b.marketCap || '0');
+        aVal = parseFloat(a.pool?.marketCap || '0');
+        bVal = parseFloat(b.pool?.marketCap || '0');
         break;
       case 'volume24h':
-        aVal = parseFloat(a.volume24h || '0');
-        bVal = parseFloat(b.volume24h || '0');
+        aVal = parseFloat(a.pool?.volume24h || '0');
+        bVal = parseFloat(b.pool?.volume24h || '0');
         break;
       case 'priceChange24h':
-        aVal = a.priceChange24h || 0;
-        bVal = b.priceChange24h || 0;
+        aVal = a.pool?.priceChange24h || 0;
+        bVal = b.pool?.priceChange24h || 0;
         break;
       case 'createdAt':
       default:
@@ -60,7 +60,7 @@ export function TokenGrid() {
 
   // Filter by Hydra status
   const filteredTokens = showOnlyHydra 
-    ? sortedTokens.filter(t => t.headPort && t.head?.status === 'Open')
+    ? sortedTokens.filter(t => t.pool?.headPort && t.pool?.status === 'Open')
     : sortedTokens;
 
   // Filter by search query (token name, ticker, or policyId)

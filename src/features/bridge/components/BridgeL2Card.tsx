@@ -78,7 +78,7 @@ export const BridgeL2Card = ({ isActive }: { isActive: boolean }) => {
                          integerOnly
                          placeholder="0"
                          value={tokenAmounts[tok.unit] || ""}
-                         onChange={(e) => setTokenAmounts(prev => ({ ...prev, [tok.unit]: e.target.value }))}
+                         onChange={(e) => setTokenAmounts({ ...tokenAmounts, [tok.unit]: e.target.value })}
                          disabled={!connected}
                          max={tok.balance.replace(/,/g,"")}
                          className="h-12 font-mono bg-background/50 pr-16 focus-visible:ring-yellow-500/50 text-right overflow-x-auto whitespace-nowrap"
@@ -91,11 +91,10 @@ export const BridgeL2Card = ({ isActive }: { isActive: boolean }) => {
                        </button>
                     </div>
                     <Button variant="ghost" size="icon" className="h-12 w-12 text-muted-foreground hover:text-destructive" onClick={() => {
-                      setSelectedUnits(prev => prev.filter(u => u !== tok.unit));
-                      setTokenAmounts(prev => {
-                        const { [tok.unit]: _, ...rest } = prev;
-                        return rest;
-                      });
+                      setSelectedUnits(selectedUnits.filter(u => u !== tok.unit));
+                      const newAmounts = { ...tokenAmounts };
+                      delete newAmounts[tok.unit];
+                      setTokenAmounts(newAmounts);
                     }}>
                        <X className="w-4 h-4" />
                     </Button>

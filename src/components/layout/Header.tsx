@@ -217,7 +217,7 @@ export const Header = () => {
 
                   if (result.type === 'token') {
                     const token = result.data as Token;
-                    const isOnHead = !!token.headPort && token.head?.status === 'Open';
+                    const isOnHead = !!token.pool?.headPort && token.pool?.status === 'Open';
 
                     return (
                       <Link
@@ -264,17 +264,17 @@ export const Header = () => {
                         </div>
 
                         {/* Price Info */}
-                        {token.currentPrice && parseFloat(token.currentPrice) > 0 && (
+                        {token.pool?.currentPrice && parseFloat(token.pool.currentPrice) > 0 && (
                           <div className="text-right">
                             <div className="text-sm font-mono">
-                              ₳{parseFloat(token.currentPrice).toFixed(4)}
+                              ₳{parseFloat(token.pool.currentPrice).toFixed(4)}
                             </div>
-                            {token.priceChange24h !== undefined && token.priceChange24h !== 0 && (
+                            {token.pool.priceChange24h !== undefined && token.pool.priceChange24h !== 0 && (
                               <div className={cn(
                                 "text-xs font-semibold",
-                                token.priceChange24h >= 0 ? "text-green-500" : "text-red-500"
+                                token.pool.priceChange24h >= 0 ? "text-green-500" : "text-red-500"
                               )}>
-                                {token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h.toFixed(2)}%
+                                {token.pool.priceChange24h >= 0 ? '+' : ''}{token.pool.priceChange24h.toFixed(2)}%
                               </div>
                             )}
                           </div>

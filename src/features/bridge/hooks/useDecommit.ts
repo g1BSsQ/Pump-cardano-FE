@@ -40,7 +40,7 @@ export const useDecommit = (): DecommitHook => {
         
         const heads = headsRes.data;
         head = heads.find(h => h.status === 'Open') || heads[0];
-        setActiveHead(head);
+        setActiveHead(head as HydraHead);
         
         dbTokens = tokensRes.data?.data || (Array.isArray(tokensRes.data) ? tokensRes.data : []);
         
@@ -56,7 +56,7 @@ export const useDecommit = (): DecommitHook => {
       } catch (e) {
         console.warn("⚠️ API Heads/Tokens lỗi. Dùng cấu hình mặc định (port 4001).", e);
         head = { status: 'Open', port: 4001 };
-        setActiveHead(head);
+        setActiveHead(head as HydraHead);
       }
 
       if (head) {
@@ -70,7 +70,7 @@ export const useDecommit = (): DecommitHook => {
 
         setDbUtxos(utxosData);
 
-        let calculatedLovelace = 0n;
+        let calculatedLovelace = BigInt(0);
         const calculatedAssets: Record<string, bigint> = {};
 
         utxosData.forEach((utxo: any) => {
@@ -82,7 +82,7 @@ export const useDecommit = (): DecommitHook => {
               if (tokens && typeof tokens === 'object') {
                 Object.entries(tokens).forEach(([assetNameHex, qty]: [string, any]) => {
                   const key = `${policyId}${assetNameHex}`; 
-                  if (!calculatedAssets[key]) calculatedAssets[key] = 0n;
+                  if (!calculatedAssets[key]) calculatedAssets[key] = BigInt(0);
                   calculatedAssets[key] += BigInt(qty);
                 });
               }
@@ -99,7 +99,7 @@ export const useDecommit = (): DecommitHook => {
         ];
 
         Object.entries(calculatedAssets).forEach(([assetKey, amount]) => {
-          if (amount > 0n) {
+          if (amount > BigInt(0)) {
             const foundInDb = dbTokens.find(t => {
                const dbId = t.assetId.replace('.', '');
                return dbId === assetKey;

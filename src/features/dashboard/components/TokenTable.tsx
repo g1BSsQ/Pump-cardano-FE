@@ -56,10 +56,10 @@ export function TokenTable({ tokens }: TokenTableProps) {
           </thead>
           <tbody>
             {tokens.map((token, idx) => {
-              const isOnHead = !!token.headPort && token.head?.status === 'Open';
-              const priceChange = token.priceChange24h || 0;
+              const isOnHead = !!token.pool?.headPort && token.pool?.status === 'Open';
+              const priceChange = token.pool?.priceChange24h || 0;
               const isPositive = priceChange >= 0;
-              const hasActivity = parseFloat(token.volume24h || '0') > 0;
+              const hasActivity = parseFloat(token.pool?.volume24h || '0') > 0;
 
               return (
                 <tr 
@@ -110,17 +110,17 @@ export function TokenTable({ tokens }: TokenTableProps) {
 
                   {/* Market Cap */}
                   <td className="p-3 text-right font-mono text-sm font-medium">
-                    {formatADA(token.marketCap || 0)}
+                    {formatADA(token.pool?.marketCap || 0)}
                   </td>
 
                   {/* Current Price */}
                   <td className="p-3 text-right font-mono text-sm">
-                    {formatPrice(token.currentPrice || 0)}
+                    {formatPrice(token.pool?.currentPrice || 0)}
                   </td>
 
                   {/* 24h Volume */}
                   <td className="p-3 text-right font-mono text-sm">
-                    {formatADA(token.volume24h || 0)}
+                    {formatADA(token.pool?.volume24h || 0)}
                   </td>
 
                   {/* 24h Change */}
@@ -143,7 +143,8 @@ export function TokenTable({ tokens }: TokenTableProps) {
 
                   {/* Holders */}
                   <td className="p-3 text-right font-mono text-sm">
-                    {token.holders ? formatNumber(token.holders) : '-'}
+                    {/* Since holders is not in Token type, we cast it or return '-' for now */}
+                    {(token as any).holders ? formatNumber((token as any).holders) : '-'}
                   </td>
 
                   {/* Age */}
@@ -176,8 +177,8 @@ export function TokenTable({ tokens }: TokenTableProps) {
       {/* Mobile Compact List */}
       <div className="md:hidden divide-y">
         {tokens.map((token, idx) => {
-          const isOnHead = !!token.headPort && token.head?.status === 'Open';
-          const priceChange = token.priceChange24h || 0;
+          const isOnHead = !!token.pool?.headPort && token.pool?.status === 'Open';
+          const priceChange = token.pool?.priceChange24h || 0;
           const isPositive = priceChange >= 0;
 
           return (
